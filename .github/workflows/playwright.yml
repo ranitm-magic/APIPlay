@@ -35,8 +35,8 @@ jobs:
             ${{ runner.os }}-playwright-
       
       - name: Install Playwright (Chrome only)
-        run: npx playwright install --with-deps chrome
-      
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chrome      
       - name: Run Playwright tests
         run: |
           if [ "${{ github.event.inputs.test_pattern }}" != "" ]; then
