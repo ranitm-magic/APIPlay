@@ -2,7 +2,24 @@ name: Playwright Tests
 on:
   repository_dispatch:
     types: [web_app_push]
-  workflow_dispatch:  # Also allow manual triggering
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: 'Repository to test (from test-config.json)'
+        required: true
+        type: string
+      branch:
+        description: 'Branch to test'
+        required: true
+        type: string
+      test_suite:
+        description: 'Test suite to run (from test-config.json)'
+        required: false
+        type: string
+      test_pattern:
+        description: 'Custom test file pattern (e.g., src/tests/*.test.ts)'
+        required: false
+        type: string
 
 jobs:
   test:
@@ -23,8 +40,28 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     
+    - name: Parse test configuration
+      id: test-config
+      run: |
+        node -e "
+          const { TestConfigManager } = require('./dist/utils/TestConfigManager');
+          const manager = new TestConfigManager();
+          
+          const repository = '${{ github.event.inputs.repository || github.event.client_payload.repository }}';
+          const branch = '${{ github.event.inputs.branch || github.event.client_payload.ref }}';
+          const suite = '${{ github.event.inputs.test_suite }}';
+          
+          const testFiles = manager.getTestFiles(repository, suite);
+          console.log('::set-output name=test_files::' + testFiles.join(','));
+        "
+
     - name: Run Playwright tests
-      run: npm run test
+      run: |
+        if [ "${{ github.event.inputs.test_pattern }}" != "" ]; then
+          npx playwright test ${{ github.event.inputs.test_pattern }}
+        else
+          npx playwright test ${{ steps.test-config.outputs.test_files }}
+        fi
       
     - name: Upload Playwright Report
       uses: actions/upload-artifact@v3

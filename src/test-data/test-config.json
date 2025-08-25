@@ -1,0 +1,30 @@
+{
+  "repositories": [
+    {
+      "name": "greenroots-grow-exchange",
+      "url": "https://github.com/ranitm-magic/greenroots-grow-exchange",
+      "branches": {
+        "oe-2": {
+          "testSuites": [
+            {
+              "name": "Full Regression",
+              "testFiles": ["src/tests/gorest-api.test.ts", "src/tests/gorest-api.posts.test.ts"],
+              "enabled": true,
+              "priority": "high"
+            }
+          ]
+        },
+        "develop": {
+          "testSuites": [
+            {
+              "name": "Smoke Tests",
+              "testFiles": ["src/tests/gorest-api.test.ts"],
+              "enabled": true,
+              "priority": "medium"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
