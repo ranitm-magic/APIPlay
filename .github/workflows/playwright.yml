@@ -37,24 +37,28 @@ jobs:
     - name: Install dependencies
       run: npm ci
       
-    - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
-    
-    - name: Build TypeScript
-      run: npm run build
+    - name: Install Playwright Chrome
+      run: npx playwright install --with-deps chrome  # Installing with dependencies for both API and UI tests
       
     - name: Parse test configuration
       id: test-config
       run: |
         TEST_FILES=$(node -e "
-          const { TestConfigManager } = require('./dist/utils/TestConfigManager');
-          const manager = new TestConfigManager();
+          const fs = require('fs');
+          const path = require('path');
+          const config = JSON.parse(fs.readFileSync('./src/test-data/test-config.json', 'utf8'));
           
           const repository = '${{ github.event.inputs.repository || github.event.client_payload.repository }}';
           const branch = '${{ github.event.inputs.branch || github.event.client_payload.ref }}';
           const suite = '${{ github.event.inputs.test_suite }}';
           
-          const testFiles = manager.getTestFiles(repository, suite);
+          const repo = config.repositories.find(r => r.name === repository);
+          const testSuites = repo?.branches[branch]?.testSuites || [];
+          const testFiles = testSuites
+            .filter(s => !suite || s.name === suite)
+            .filter(s => s.enabled)
+            .flatMap(s => s.testFiles);
+            
           console.log(testFiles.join(','));
         ")
         echo "test_files=$TEST_FILES" >> $GITHUB_OUTPUT
