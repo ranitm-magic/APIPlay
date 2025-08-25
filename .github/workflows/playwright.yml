@@ -26,12 +26,12 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up Node.js
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
     
     - name: Install dependencies
@@ -52,7 +52,7 @@ jobs:
           const suite = '${{ github.event.inputs.test_suite }}';
           
           const testFiles = manager.getTestFiles(repository, suite);
-          console.log('::set-output name=test_files::' + testFiles.join(','));
+          console.log(`echo "test_files=${testFiles.join(',')}" >> $GITHUB_OUTPUT`);
         "
 
     - name: Run Playwright tests
@@ -64,7 +64,7 @@ jobs:
         fi
       
     - name: Upload Playwright Report
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: playwright-report
