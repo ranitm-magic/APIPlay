@@ -1,0 +1,125 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Run semver",
+            "runtimeExecutable": "semver",
+            "cwd": "${workspaceFolder}/node_modules/ts-jest",
+            "args": []
+        },
+        {
+            "type": "node",
+            "name": "Debug API Tests",
+            "request": "launch",
+            "program": "${workspaceFolder}/node_modules/@playwright/test/cli.js",
+            "args": ["test", "api.test.ts", "--debug"],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "DEBUG": "pw:api"
+            }
+        },
+        {
+            "type": "node",
+            "name": "Debug Current Test File",
+            "request": "launch",
+            "runtimeExecutable": "npx",
+            "runtimeArgs": [
+                "playwright",
+                "test",
+                "${relativeFile}",
+                "--debug"
+            ],
+            "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ]
+        },
+        {
+            "type": "node",
+            "name": "Debug Single Test",
+            "request": "launch",
+            "runtimeExecutable": "npx",
+            "runtimeArgs": [
+                "playwright",
+                "test",
+                "${relativeFile}",
+                "-g",
+                "${input:testName}",
+                "--debug"
+            ],
+            "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ]
+        },
+        {
+            "type": "node",
+            "name": "Debug API Tests (Headed)",
+            "request": "launch",
+            "runtimeExecutable": "npx",
+            "runtimeArgs": [
+                "playwright",
+                "test",
+                "api.test.ts",
+                "--debug",
+                "--headed"
+            ],
+            "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ]
+        },
+        {
+            "type": "node",
+            "name": "Debug with Network Logging",
+            "request": "launch",
+            "runtimeExecutable": "npx",
+            "runtimeArgs": [
+                "playwright",
+                "test",
+                "${relativeFile}",
+                "--debug"
+            ],
+            "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "env": {
+                "DEBUG": "pw:api,pw:network*"
+            }
+        },
+        {
+            "type": "node",
+            "name": "Debug with Slow Motion",
+            "request": "launch",
+            "runtimeExecutable": "npx",
+            "runtimeArgs": [
+                "playwright",
+                "test",
+                "${relativeFile}",
+                "--debug",
+                "--timeout",
+                "0"
+            ],
+            "console": "integratedTerminal",
+            "skipFiles": [
+                "<node_internals>/**"
+            ],
+            "env": {
+                "PWSLOW": "1000"
+            }
+        }
+    ],
+    "inputs": [
+        {
+            "id": "testName",
+            "type": "promptString",
+            "description": "Enter the name of the test to debug",
+            "default": "POST - Create a new post"
+        }
+    ]
+}
