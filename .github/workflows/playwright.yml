@@ -1,21 +1,10 @@
 name: Playwright Tests
+
 on:
   repository_dispatch:
     types: [web_app_push]
   workflow_dispatch:
     inputs:
-      repository:
-        description: 'Repository to test (from test-config.json)'
-        required: true
-        type: string
-      branch:
-        description: 'Branch to test'
-        required: true
-        type: string
-      test_suite:
-        description: 'Test suite to run (from test-config.json)'
-        required: false
-        type: string
       test_pattern:
         description: 'Custom test file pattern (e.g., src/tests/*.test.ts)'
         required: false
@@ -26,79 +15,54 @@ jobs:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
+      - uses: actions/checkout@v4
       
-    - name: Install Playwright Chrome
-      run: npx playwright install --with-deps chrome  # Installing with dependencies for both API and UI tests
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
       
-    - name: Parse test configuration
-      id: test-config
-      run: |
-        TEST_FILES=$(node -e "
-          const fs = require('fs');
-          const path = require('path');
-          const config = JSON.parse(fs.readFileSync('./src/test-data/test-config.json', 'utf8'));
-          
-          const repository = '${{ github.event.inputs.repository || github.event.client_payload.repository }}';
-          const branch = '${{ github.event.inputs.branch || github.event.client_payload.ref }}';
-          const suite = '${{ github.event.inputs.test_suite }}';
-          
-          const repo = config.repositories.find(r => r.name === repository);
-          const testSuites = repo?.branches[branch]?.testSuites || [];
-          const testFiles = testSuites
-            .filter(s => !suite || s.name === suite)
-            .filter(s => s.enabled)
-            .flatMap(s => s.testFiles);
-            
-          console.log(testFiles.join(','));
-        ")
-        echo "test_files=$TEST_FILES" >> $GITHUB_OUTPUT
-        "
-
-    - name: Run Playwright tests
-      run: |
-        if [ "${{ github.event.inputs.test_pattern }}" != "" ]; then
-          npx playwright test ${{ github.event.inputs.test_pattern }}
-        else
-          npx playwright test ${{ steps.test-config.outputs.test_files }}
-        fi
-      
-    - name: Upload Playwright Report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: playwright-report
-        path: playwright-report/
-        retention-days: 30
+      - name: Install dependencies
+        run: npm ci
         
-    - name: Send email notification
-      if: always()
-      uses: dawidd6/action-send-mail@v3
-      with:
-        server_address: smtp.gmail.com
-        server_port: 465
-        username: ${{secrets.EMAIL_USERNAME}}
-        password: ${{secrets.EMAIL_PASSWORD}}
-        subject: Playwright Test Results - ${{ job.status }}
-        body: |
-          Playwright Test Results for Web Application
+      - name: Install Playwright (Chrome only)
+        run: npx playwright install --with-deps chrome
+      
+      - name: Run Playwright tests
+        run: |
+          if [ "${{ github.event.inputs.test_pattern }}" != "" ]; then
+            npx playwright test ${{ github.event.inputs.test_pattern }}
+          else
+            npx playwright test
+          fi
+      
+      - name: Upload Playwright Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30
           
-          Status: ${{ job.status }}
-          
-          Web App Commit: ${{ github.event.client_payload.sha }}
-          Web App Repository: ${{ github.event.client_payload.repository }}
-          Branch: ${{ github.event.client_payload.ref }}
-          
-          View detailed report in the GitHub Actions artifacts:
-          ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        to: ${{secrets.NOTIFICATION_EMAIL}}
-        from: Playwright Tests
+      - name: Send email notification
+        if: always()
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{secrets.EMAIL_USERNAME}}
+          password: ${{secrets.EMAIL_PASSWORD}}
+          subject: Playwright Test Results - ${{ job.status }}
+          body: |
+            Playwright Test Results for Web Application
+
+            Status: ${{ job.status }}
+            
+            Repository: ${{ github.repository }}
+            Triggered by: ${{ github.event_name }}
+            
+            View detailed report in the GitHub Actions artifacts:
+            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          to: ${{secrets.NOTIFICATION_EMAIL}}
+          from: Playwright Tests
