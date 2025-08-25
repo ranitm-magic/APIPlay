@@ -40,10 +40,13 @@ jobs:
     - name: Install Playwright Browsers
       run: npx playwright install --with-deps
     
+    - name: Build TypeScript
+      run: npm run build
+      
     - name: Parse test configuration
       id: test-config
       run: |
-        node -e "
+        TEST_FILES=$(node -e "
           const { TestConfigManager } = require('./dist/utils/TestConfigManager');
           const manager = new TestConfigManager();
           
@@ -52,7 +55,9 @@ jobs:
           const suite = '${{ github.event.inputs.test_suite }}';
           
           const testFiles = manager.getTestFiles(repository, suite);
-          console.log(`echo "test_files=${testFiles.join(',')}" >> $GITHUB_OUTPUT`);
+          console.log(testFiles.join(','));
+        ")
+        echo "test_files=$TEST_FILES" >> $GITHUB_OUTPUT
         "
 
     - name: Run Playwright tests
