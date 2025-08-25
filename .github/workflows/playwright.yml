@@ -22,10 +22,18 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-        
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+      
       - name: Install Playwright (Chrome only)
         run: npx playwright install --with-deps chrome
       
@@ -59,8 +67,11 @@ jobs:
 
             Status: ${{ job.status }}
             
-            Repository: ${{ github.repository }}
+            CUrrent Repository: ${{ github.repository }}
             Triggered by: ${{ github.event_name }}
+            Web App Commit: ${{ github.event.client_payload.sha }}
+            Web App Repository: ${{ github.event.client_payload.repository }}
+            Branch: ${{ github.event.client_payload.ref }}
             
             View detailed report in the GitHub Actions artifacts:
             ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
