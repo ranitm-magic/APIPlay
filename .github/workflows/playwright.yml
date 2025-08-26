@@ -27,22 +27,24 @@ jobs:
         run: npm ci
 
       - name: Cache Playwright browsers
+        id: cache-playwright
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
           key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-playwright-
-      
+
       - name: Install Playwright (Chrome only)
         if: steps.cache-playwright.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chrome      
-      - name: Run Playwright tests
+        run: npx playwright install --with-deps chrome
+
+      - name: Run Playwright tests (Chrome only)
         run: |
           if [ "${{ github.event.inputs.test_pattern }}" != "" ]; then
-            npx playwright test ${{ github.event.inputs.test_pattern }}
+            npx playwright test --project=chrome ${{ github.event.inputs.test_pattern }}
           else
-            npx playwright test
+            npx playwright test --project=chrome
           fi
       
       - name: Upload Playwright Report
