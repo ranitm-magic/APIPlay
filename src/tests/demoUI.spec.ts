@@ -20,7 +20,7 @@ test.describe('Google Search UI Tests', () => {
     await expect(page).toHaveTitle(/Google/);
     
     // Verify search input is visible
-    const searchInput = page.locator('textarea[name="q"]');
+    const searchInput = page.locator('textarea[name="q1"]');
     await expect(searchInput).toBeVisible();
 
 
