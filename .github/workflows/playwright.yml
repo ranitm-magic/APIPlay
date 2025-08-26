@@ -38,22 +38,45 @@ jobs:
       - name: Install Playwright browsers
         run: |
           if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
-            echo "Browsers found in cache, ensuring they are properly installed..."
-            npx playwright install-deps chromium
+            echo "Browsers found in cache, verifying installation..."
+            npx playwright install --dry-run > /dev/null 2>&1 || npx playwright install chromium
           else
             echo "Installing Playwright browsers and dependencies..."
             npx playwright install --with-deps chromium
+          fi
+
+      - name: Validate test pattern
+        id: validate-pattern
+        if: ${{ github.event.inputs.test_pattern != '' }}
+        run: |
+          pattern="${{ github.event.inputs.test_pattern }}"
+          # Basic validation - allow only alphanumeric, dots, slashes, asterisks, hyphens, underscores
+          if echo "$pattern" | grep -qE '^[a-zA-Z0-9./*_-]*$'; then
+            echo "pattern_valid=true" >> $GITHUB_OUTPUT
+            echo "safe_pattern=$pattern" >> $GITHUB_OUTPUT
+          else
+            echo "pattern_valid=false" >> $GITHUB_OUTPUT
+            echo "safe_pattern=" >> $GITHUB_OUTPUT
           fi
 
       - name: Run Playwright tests
         id: playwright-tests
         continue-on-error: true
         run: |
-          if [ "${{ github.event.inputs.test_pattern }}" != "" ]; then
-            PLAYWRIGHT_JSON_OUTPUT_NAME=results.json npx playwright test ${{ github.event.inputs.test_pattern }} --reporter=html --reporter=json
+          set +e
+          if [ -n "${{ github.event.inputs.test_pattern }}" ]; then
+            if [ "${{ steps.validate-pattern.outputs.pattern_valid }}" = "true" ]; then
+              npx playwright test "${{ steps.validate-pattern.outputs.safe_pattern }}" --reporter=html --reporter=json --reporter-json output=results.json
+            else
+              echo "Invalid test pattern provided. Running all tests instead."
+              npx playwright test --reporter=html --reporter=json --reporter-json output=results.json
+            fi
           else
-            PLAYWRIGHT_JSON_OUTPUT_NAME=results.json npx playwright test --reporter=html --reporter=json
+            npx playwright test --reporter=html --reporter=json --reporter-json output=results.json
           fi
+          exit_code=$?
+          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
+          exit 0
 
       - name: Debug JSON structure
         if: always()
@@ -69,55 +92,42 @@ jobs:
             echo "results.json not found"
           fi
 
-      - name: Save test summary
+      - name: Parse test results
         id: test-summary
         run: |
           if [ -f "results.json" ]; then
-            # More robust JSON parsing with multiple fallback strategies
-            passed=$(jq -r '
-              if .suites then 
-                [.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="passed")] | length
-              elif .tests then
-                [.tests[] | select(.status=="passed")] | length
-              else 
-                0 
-              end
-            ' results.json 2>/dev/null || echo "0")
+            # Initialize default values
+            passed=0
+            failed=0
+            skipped=0
+            duration=0
             
-            failed=$(jq -r '
-              if .suites then 
-                [.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="failed")] | length
-              elif .tests then
-                [.tests[] | select(.status=="failed")] | length
-              else 
-                0 
-              end
-            ' results.json 2>/dev/null || echo "0")
-            
-            skipped=$(jq -r '
-              if .suites then 
-                [.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="skipped")] | length
-              elif .tests then
-                [.tests[] | select(.status=="skipped")] | length
-              else 
-                0 
-              end
-            ' results.json 2>/dev/null || echo "0")
-            
-            duration=$(jq -r '(.duration // 0) / 1000' results.json 2>/dev/null || echo "0")
+            # Strategy 1: Modern Playwright format (v1.25+)
+            if jq -e '.stats' results.json > /dev/null 2>&1; then
+              passed=$(jq -r '.stats.passed' results.json)
+              failed=$(jq -r '.stats.failed' results.json)
+              skipped=$(jq -r '.stats.skipped' results.json)
+              duration=$(jq -r '.stats.duration / 1000' results.json)
+            # Strategy 2: Older format with suites
+            elif jq -e '.suites' results.json > /dev/null 2>&1; then
+              passed=$(jq -r '[.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="passed")] | length' results.json)
+              failed=$(jq -r '[.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="failed")] | length' results.json)
+              skipped=$(jq -r '[.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="skipped")] | length' results.json)
+              duration=$(jq -r '(.duration // 0) / 1000' results.json)
+            fi
             
             echo "Test counts found: passed=$passed, failed=$failed, skipped=$skipped, duration=${duration}s"
             echo "passed=${passed}" >> $GITHUB_OUTPUT
             echo "failed=${failed}" >> $GITHUB_OUTPUT
             echo "skipped=${skipped}" >> $GITHUB_OUTPUT
-            echo "duration=${duration}s" >> $GITHUB_OUTPUT
+            echo "duration=${duration}" >> $GITHUB_OUTPUT
             echo "results_available=true" >> $GITHUB_OUTPUT
           else
             echo "results.json not found, setting default values"
             echo "passed=0" >> $GITHUB_OUTPUT
             echo "failed=0" >> $GITHUB_OUTPUT
             echo "skipped=0" >> $GITHUB_OUTPUT
-            echo "duration=0s" >> $GITHUB_OUTPUT
+            echo "duration=0" >> $GITHUB_OUTPUT
             echo "results_available=false" >> $GITHUB_OUTPUT
           fi
 
@@ -130,6 +140,101 @@ jobs:
             playwright-report/
             results.json
           retention-days: 30
+
+      - name: Generate email content
+        if: always()
+        id: generate-email
+        run: |
+          cat > email_body.html << 'EOF'
+          <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+              <h2 style="color:#2E86C1;">🎭 Playwright Test Results</h2>
+              <p><strong>Status:</strong> 
+                <span style="color:${{ steps.playwright-tests.outcome == 'success' && '#28a745' || '#e74c3c' }};">
+                  ${{ steps.playwright-tests.outcome }}
+                </span>
+              </p>
+
+              ${{ steps.test-summary.outputs.results_available == 'true' && '
+              <h3>Test Summary</h3>
+              <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 60%; max-width: 400px; text-align:center;">
+                <tr style="background:#f2f2f2;">
+                  <th>Passed ✅</th>
+                  <th>Failed ❌</th>
+                  <th>Skipped ⚡</th>
+                  <th>Duration ⏱</th>
+                </tr>
+                <tr>
+                  <td style="color:#28a745;">' || '' }}${{ steps.test-summary.outputs.passed }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
+                  <td style="color:#e74c3c;">' || '' }}${{ steps.test-summary.outputs.failed }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
+                  <td style="color:#f39c12;">' || '' }}${{ steps.test-summary.outputs.skipped }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
+                  <td>' || '' }}${{ steps.test-summary.outputs.duration }}s${{ steps.test-summary.outputs.results_available == 'true' && '</td>
+                </tr>
+              </table>
+              ' || '<p style="color:#e74c3c;">⚠️ Test results could not be parsed. Check the workflow logs for details.</p>' }}
+              
+              <h3 style="margin-top:20px;">📌 Metadata</h3>
+              <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%; max-width: 600px;">
+                <tr>
+                  <td><strong>Repository</strong></td>
+                  <td>${{ github.repository }}</td>
+                </tr>
+                <tr>
+                  <td><strong>Triggered by</strong></td>
+                  <td>${{ github.event_name }}</td>
+                </tr>
+                ${{ github.event_name == 'repository_dispatch' && '
+                <tr>
+                  <td><strong>Web App Commit</strong></td>
+                  <td><code>' || '' }}${{ github.event.client_payload.sha || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</code></td>
+                </tr>
+                <tr>
+                  <td><strong>Author</strong></td>
+                  <td>' || '' }}${{ github.event.client_payload.commit_author || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
+                </tr>
+                <tr>
+                  <td><strong>Commit ID</strong></td>
+                  <td><code>' || '' }}${{ github.event.client_payload.commit_id || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</code></td>
+                </tr>
+                <tr>
+                  <td><strong>Web App Repository</strong></td>
+                  <td>' || '' }}${{ github.event.client_payload.repository || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
+                </tr>
+                <tr>
+                  <td><strong>Branch</strong></td>
+                  <td>' || '' }}${{ github.event.client_payload.ref || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
+                </tr>
+                ' || '' }}
+                ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.test_pattern && '
+                <tr>
+                  <td><strong>Test Pattern</strong></td>
+                  <td><code>' || '' }}${{ github.event.inputs.test_pattern }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.test_pattern && '</code></td>
+                </tr>
+                ' || '' }}
+                <tr>
+                  <td><strong>Workflow Run</strong></td>
+                  <td>${{ github.run_id }}</td>
+                </tr>
+              </table>
+
+              <p style="margin-top:20px;">
+                🔗 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 
+                      style="color:#2E86C1; text-decoration:none;">
+                  View detailed test report
+                </a>
+              </p>
+
+              <hr style="margin-top:30px; border:none; border-top:1px solid #ddd;" />
+              <p style="font-size:12px; color:#999;">This is an automated email from GitHub Actions - Playwright CI.</p>
+            </body>
+          </html>
+          EOF
+          
+          # Read the generated content for the email action
+          email_content=$(cat email_body.html)
+          echo "email_content<<EOF" >> $GITHUB_OUTPUT
+          echo "$email_content" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
           
       - name: Send email notification
         if: always()
@@ -141,88 +246,6 @@ jobs:
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
           subject: Playwright Test Results - ${{ steps.playwright-tests.outcome }}
-          html_body: |
-            <html>
-              <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <h2 style="color:#2E86C1;">🎭 Playwright Test Results</h2>
-                <p><strong>Status:</strong> 
-                  <span style="color:${{ steps.playwright-tests.outcome == 'success' && '#28a745' || '#e74c3c' }};">
-                    ${{ steps.playwright-tests.outcome }}
-                  </span>
-                </p>
-
-                ${{ steps.test-summary.outputs.results_available == 'true' && '
-                <h3>Test Summary</h3>
-                <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 60%; max-width: 400px; text-align:center;">
-                  <tr style="background:#f2f2f2;">
-                    <th>Passed ✅</th>
-                    <th>Failed ❌</th>
-                    <th>Skipped ⚡</th>
-                    <th>Duration ⏱</th>
-                  </tr>
-                  <tr>
-                    <td style="color:#28a745;">' || '' }}${{ steps.test-summary.outputs.passed }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
-                    <td style="color:#e74c3c;">' || '' }}${{ steps.test-summary.outputs.failed }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
-                    <td style="color:#f39c12;">' || '' }}${{ steps.test-summary.outputs.skipped }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
-                    <td>' || '' }}${{ steps.test-summary.outputs.duration }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
-                  </tr>
-                </table>
-                ' || '<p style="color:#e74c3c;">⚠️ Test results could not be parsed. Check the workflow logs for details.</p>' }}
-                
-                <h3 style="margin-top:20px;">📌 Metadata</h3>
-                <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%; max-width: 600px;">
-                  <tr>
-                    <td><strong>Repository</strong></td>
-                    <td>${{ github.repository }}</td>
-                  </tr>
-                  <tr>
-                    <td><strong>Triggered by</strong></td>
-                    <td>${{ github.event_name }}</td>
-                  </tr>
-                  ${{ github.event_name == 'repository_dispatch' && '
-                  <tr>
-                    <td><strong>Web App Commit</strong></td>
-                    <td><code>' || '' }}${{ github.event.client_payload.sha || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</code></td>
-                  </tr>
-                  <tr>
-                    <td><strong>Author</strong></td>
-                    <td>' || '' }}${{ github.event.client_payload.commit_author || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
-                  </tr>
-                  <tr>
-                    <td><strong>Commit ID</strong></td>
-                    <td><code>' || '' }}${{ github.event.client_payload.commit_id || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</code></td>
-                  </tr>
-                  <tr>
-                    <td><strong>Web App Repository</strong></td>
-                    <td>' || '' }}${{ github.event.client_payload.repository || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
-                  </tr>
-                  <tr>
-                    <td><strong>Branch</strong></td>
-                    <td>' || '' }}${{ github.event.client_payload.ref || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
-                  </tr>
-                  ' || '' }}
-                  ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.test_pattern && '
-                  <tr>
-                    <td><strong>Test Pattern</strong></td>
-                    <td><code>' || '' }}${{ github.event.inputs.test_pattern }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.test_pattern && '</code></td>
-                  </tr>
-                  ' || '' }}
-                  <tr>
-                    <td><strong>Workflow Run</strong></td>
-                    <td>${{ github.run_id }}</td>
-                  </tr>
-                </table>
-
-                <p style="margin-top:20px;">
-                  🔗 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 
-                        style="color:#2E86C1; text-decoration:none;">
-                    View detailed test report
-                  </a>
-                </p>
-
-                <hr style="margin-top:30px; border:none; border-top:1px solid #ddd;" />
-                <p style="font-size:12px; color:#999;">This is an automated email from GitHub Actions - Playwright CI.</p>
-              </body>
-            </html>
+          html_body: ${{ steps.generate-email.outputs.email_content }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Playwright Tests <${{ secrets.EMAIL_USERNAME }}>
