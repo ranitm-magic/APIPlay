@@ -147,11 +147,6 @@ jobs:
           echo "PLAYWRIGHT_RETRIES=${{ github.event.inputs.retries || '2' }}" >> $GITHUB_ENV
           echo "TEST_ENVIRONMENT=${{ needs.setup.outputs.environment }}" >> $GITHUB_ENV
 
-      - name: Health check application
-        run: |
-          echo "Checking application health..."
-          timeout 60 bash -c 'until curl -f http://localhost:3000/health 2>/dev/null; do sleep 5; done' || true
-
       - name: Run Playwright tests
         id: playwright-test
         run: |
@@ -175,7 +170,6 @@ jobs:
             --workers=${{ env.PLAYWRIGHT_WORKERS }} \
             --retries=${{ env.PLAYWRIGHT_RETRIES }} \
             --reporter=html,json,junit \
-            --output-dir=test-results-chromium-${{ matrix.shard }} \
             ${TEST_PATTERN}
         env:
           PLAYWRIGHT_HTML_REPORT: playwright-report-chromium-${{ matrix.shard }}
