@@ -7,6 +7,13 @@ export default defineConfig({
   use: {
     trace: 'on-first-retry',
   },
-  
-  
+  projects: [
+    {
+      name: 'chrome',
+      use: {
+        browserName: 'chromium',
+        channel: 'chrome',   // 👈 ensures Chrome (not plain Chromium) is used
+      },
+    },
+  ],
 });
