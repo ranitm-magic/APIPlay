@@ -35,7 +35,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
 
-      - name: Install PLAYWRIGHT browsers
+      - name: Install Playwright1 browsers
         run: |
           if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
             echo "Browsers found in cache, verifying installation..."
@@ -45,126 +45,106 @@ jobs:
             npx playwright install --with-deps chromium
           fi
 
-      - name: Validate test pattern
-        id: validate-pattern
-        if: ${{ github.event.inputs.test_pattern != '' }}
-        run: |
-          pattern="${{ github.event.inputs.test_pattern }}"
-          # Basic validation - allow only alphanumeric, dots, slashes, asterisks, hyphens, underscores
-          if echo "$pattern" | grep -qE '^[a-zA-Z0-9./*_-]*$'; then
-            echo "pattern_valid=true" >> $GITHUB_OUTPUT
-            echo "safe_pattern=$pattern" >> $GITHUB_OUTPUT
-          else
-            echo "pattern_valid=false" >> $GITHUB_OUTPUT
-            echo "safe_pattern=" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Check Playwright version
-        id: playwright-version
-        run: |
-          version=$(npx playwright --version 2>/dev/null || echo "unknown")
-          echo "Playwright version: $version"
-          
-          # Check if version supports --reporter-json flag
-          if npx playwright test --help | grep -q "reporter-json"; then
-            echo "supports_json_flag=true" >> $GITHUB_OUTPUT
-          else
-            echo "supports_json_flag=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Run Playwright tests
         id: playwright-tests
         continue-on-error: true
         run: |
           set +e
           
-          # Determine the appropriate command based on Playwright version
-          if [ "${{ steps.playwright-version.outputs.supports_json_flag }}" = "true" ]; then
-            JSON_FLAG="--reporter-json output=results.json"
-          else
-            # For older versions, use environment variable approach
-            export PLAYWRIGHT_JSON_OUTPUT_NAME=results.json
-            JSON_FLAG=""
-          fi
+          # Use environment variable for JSON output (compatible with older Playwright versions)
+          export PLAYWRIGHT_JSON_OUTPUT_NAME=results.json
           
           if [ -n "${{ github.event.inputs.test_pattern }}" ]; then
-            if [ "${{ steps.validate-pattern.outputs.pattern_valid }}" = "true" ]; then
-              npx playwright test "${{ steps.validate-pattern.outputs.safe_pattern }}" --reporter=html --reporter=json $JSON_FLAG
-            else
-              echo "Invalid test pattern provided. Running all tests instead."
-              npx playwright test --reporter=html --reporter=json $JSON_FLAG
-            fi
+            npx playwright test "${{ github.event.inputs.test_pattern }}" --reporter=html --reporter=json
           else
-            npx playwright test --reporter=html --reporter=json $JSON_FLAG
+            npx playwright test --reporter=html --reporter=json
           fi
           
           exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          
-          # For older versions, check if results.json was created via environment variable
-          if [ "${{ steps.playwright-version.outputs.supports_json_flag }}" = "false" ] && [ ! -f "results.json" ]; then
-            echo "Falling back to generating JSON report from HTML"
-            # Try to generate JSON from the HTML report if available
-            if [ -d "playwright-report" ]; then
-              # This is a simple fallback - you might need to adjust based on your actual needs
-              echo '{"suites": [], "duration": 0}' > results.json
-            fi
-          fi
-          
           exit 0
 
       - name: Debug JSON structure
         if: always()
         run: |
           if [ -f "results.json" ]; then
-            echo "JSON file exists, size: $(wc -c < results.json)"
-            echo "First 500 chars of results.json:"
-            head -c 500 results.json || echo "Could not read file"
+            echo "=== JSON FILE CONTENTS ==="
+            cat results.json
             echo ""
-            echo "JSON structure check:"
-            jq -r 'keys' results.json || echo "Invalid JSON"
+            echo "=== JSON STRUCTURE ANALYSIS ==="
+            jq -r 'keys' results.json || echo "Cannot parse with jq"
+            echo ""
+            echo "=== TOP-LEVEL KEYS AND VALUES ==="
+            jq -r 'to_entries[] | "\(.key): \(.value)"' results.json 2>/dev/null || echo "Cannot extract key-value pairs"
           else
             echo "results.json not found"
-            # Try to find any JSON files that might contain results
-            find . -name "*.json" -exec echo "Found JSON file: {}" \;
+            ls -la
           fi
 
       - name: Parse test results
         id: test-summary
         run: |
           if [ -f "results.json" ]; then
-            # Initialize default values
+            echo "=== ANALYZING RESULTS.JSON ==="
+            
+            # Try multiple parsing strategies
             passed=0
             failed=0
             skipped=0
             duration=0
             
-            # Strategy 1: Modern Playwright format (v1.25+)
+            # Strategy 1: Check for modern format with 'stats'
             if jq -e '.stats' results.json > /dev/null 2>&1; then
+              echo "Found modern format (stats)"
               passed=$(jq -r '.stats.passed' results.json)
               failed=$(jq -r '.stats.failed' results.json)
               skipped=$(jq -r '.stats.skipped' results.json)
               duration=$(jq -r '.stats.duration / 1000' results.json)
-            # Strategy 2: Older format with suites
+            
+            # Strategy 2: Check for format with 'total'
+            elif jq -e '.total' results.json > /dev/null 2>&1; then
+              echo "Found format with total"
+              passed=$(jq -r '.passed' results.json)
+              failed=$(jq -r '.failed' results.json)
+              skipped=$(jq -r '.skipped' results.json)
+              duration=$(jq -r '.duration / 1000' results.json)
+            
+            # Strategy 3: Check for array format
+            elif jq -e 'type == "array"' results.json > /dev/null 2>&1; then
+              echo "Found array format"
+              passed=$(jq -r '[.[] | select(.status == "passed")] | length' results.json)
+              failed=$(jq -r '[.[] | select(.status == "failed")] | length' results.json)
+              skipped=$(jq -r '[.[] | select(.status == "skipped")] | length' results.json)
+              duration=$(jq -r 'map(.duration | numbers) | add // 0' results.json)
+            
+            # Strategy 4: Count from suites
             elif jq -e '.suites' results.json > /dev/null 2>&1; then
-              passed=$(jq -r '[.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="passed")] | length' results.json)
-              failed=$(jq -r '[.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="failed")] | length' results.json)
-              skipped=$(jq -r '[.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="skipped")] | length' results.json)
+              echo "Found suites format"
+              passed=$(jq -r '[.suites[]?.specs[]?.tests[]? | select(.results[]?.status=="passed")] | length' results.json)
+              failed=$(jq -r '[.suites[]?.specs[]?.tests[]? | select(.results[]?.status=="failed")] | length' results.json)
+              skipped=$(jq -r '[.suites[]?.specs[]?.tests[]? | select(.results[]?.status=="skipped")] | length' results.json)
               duration=$(jq -r '(.duration // 0) / 1000' results.json)
-            # Strategy 3: Try to parse from HTML report if JSON is empty/invalid
+            
             else
-              echo "JSON file exists but has unexpected format"
-              # Count test files as a fallback
-              test_count=$(find . -name "*.spec.ts" -o -name "*.test.ts" | wc -l)
-              passed=$test_count
+              echo "Unknown JSON format, using fallback counting"
+              # Fallback: Count test files
+              test_files=$(find . -name "*.spec.ts" -o -name "*.test.ts" -o -name "*.spec.js" -o -name "*.test.js" | wc -l)
+              passed=$test_files
             fi
             
-            echo "Test counts found: passed=$passed, failed=$failed, skipped=$skipped, duration=${duration}s"
+            # Ensure numeric values
+            passed=${passed:-0}
+            failed=${failed:-0}
+            skipped=${skipped:-0}
+            duration=${duration:-0}
+            
+            echo "Final counts: passed=$passed, failed=$failed, skipped=$skipped, duration=${duration}s"
             echo "passed=${passed}" >> $GITHUB_OUTPUT
             echo "failed=${failed}" >> $GITHUB_OUTPUT
             echo "skipped=${skipped}" >> $GITHUB_OUTPUT
             echo "duration=${duration}" >> $GITHUB_OUTPUT
             echo "results_available=true" >> $GITHUB_OUTPUT
+            
           else
             echo "results.json not found, setting default values"
             echo "passed=0" >> $GITHUB_OUTPUT
@@ -188,7 +168,15 @@ jobs:
         if: always()
         id: generate-email
         run: |
-          cat > email_body.html << 'EOF'
+          # Get repository dispatch data if available
+          client_payload="${{ toJSON(github.event.client_payload) }}"
+          sha=$(echo "$client_payload" | jq -r '.sha // "N/A"')
+          commit_author=$(echo "$client_payload" | jq -r '.commit_author // "N/A"')
+          commit_id=$(echo "$client_payload" | jq -r '.commit_id // "N/A"')
+          repository=$(echo "$client_payload" | jq -r '.repository // "N/A"')
+          ref=$(echo "$client_payload" | jq -r '.ref // "N/A"')
+          
+          cat > email_body.html << EOF
           <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
               <h2 style="color:#2E86C1;">🎭 Playwright Test Results</h2>
@@ -198,7 +186,6 @@ jobs:
                 </span>
               </p>
 
-              ${{ steps.test-summary.outputs.results_available == 'true' && '
               <h3>Test Summary</h3>
               <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 60%; max-width: 400px; text-align:center;">
                 <tr style="background:#f2f2f2;">
@@ -208,13 +195,12 @@ jobs:
                   <th>Duration ⏱</th>
                 </tr>
                 <tr>
-                  <td style="color:#28a745;">' || '' }}${{ steps.test-summary.outputs.passed }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
-                  <td style="color:#e74c3c;">' || '' }}${{ steps.test-summary.outputs.failed }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
-                  <td style="color:#f39c12;">' || '' }}${{ steps.test-summary.outputs.skipped }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
-                  <td>' || '' }}${{ steps.test-summary.outputs.duration }}s${{ steps.test-summary.outputs.results_available == 'true' && '</td>
+                  <td style="color:#28a745;">${{ steps.test-summary.outputs.passed }}</td>
+                  <td style="color:#e74c3c;">${{ steps.test-summary.outputs.failed }}</td>
+                  <td style="color:#f39c12;">${{ steps.test-summary.outputs.skipped }}</td>
+                  <td>${{ steps.test-summary.outputs.duration }}s</td>
                 </tr>
               </table>
-              ' || '<p style="color:#e74c3c;">⚠️ Test results could not be parsed. Check the workflow logs for details.</p>' }}
               
               <h3 style="margin-top:20px;">📌 Metadata</h3>
               <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%; max-width: 600px;">
@@ -226,34 +212,34 @@ jobs:
                   <td><strong>Triggered by</strong></td>
                   <td>${{ github.event_name }}</td>
                 </tr>
-                ${{ github.event_name == 'repository_dispatch' && '
+                $(if [ "${{ github.event_name }}" = "repository_dispatch" ]; then echo "
                 <tr>
                   <td><strong>Web App Commit</strong></td>
-                  <td><code>' || '' }}${{ github.event.client_payload.sha || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</code></td>
+                  <td><code>$sha</code></td>
                 </tr>
                 <tr>
                   <td><strong>Author</strong></td>
-                  <td>' || '' }}${{ github.event.client_payload.commit_author || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
+                  <td>$commit_author</td>
                 </tr>
                 <tr>
                   <td><strong>Commit ID</strong></td>
-                  <td><code>' || '' }}${{ github.event.client_payload.commit_id || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</code></td>
+                  <td><code>$commit_id</code></td>
                 </tr>
                 <tr>
                   <td><strong>Web App Repository</strong></td>
-                  <td>' || '' }}${{ github.event.client_payload.repository || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
+                  <td>$repository</td>
                 </tr>
                 <tr>
                   <td><strong>Branch</strong></td>
-                  <td>' || '' }}${{ github.event.client_payload.ref || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
+                  <td>$ref</td>
                 </tr>
-                ' || '' }}
-                ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.test_pattern && '
+                "; fi)
+                $(if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.test_pattern }}" ]; then echo "
                 <tr>
                   <td><strong>Test Pattern</strong></td>
-                  <td><code>' || '' }}${{ github.event.inputs.test_pattern }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.test_pattern && '</code></td>
+                  <td><code>${{ github.event.inputs.test_pattern }}</code></td>
                 </tr>
-                ' || '' }}
+                "; fi)
                 <tr>
                   <td><strong>Workflow Run</strong></td>
                   <td>${{ github.run_id }}</td>
