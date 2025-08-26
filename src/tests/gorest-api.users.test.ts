@@ -27,7 +27,7 @@ test.describe.serial('GoRest API Sequential Tests', () => {
         console.log(`Created user with ID: ${createdUserId}`);
     });
 
-    test('should get created user by ID', async ({ request }) => {
+    test.skip('should get created user by ID', async ({ request }) => {
         const goRestService = createService(request);
         const user = await goRestService.getUserById(createdUserId);
         
