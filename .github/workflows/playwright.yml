@@ -72,6 +72,8 @@ jobs:
             Current Repository: ${{ github.repository }}
             Triggered by: ${{ github.event_name }}
             Web App Commit: ${{ github.event.client_payload.sha }}
+            Author: ${{ github.event.client_payload.commit_author }}
+            Comit ID: ${{ github.event.client_payload.commit_id }}
             Web App Repository: ${{ github.event.client_payload.repository }}
             Branch: ${{ github.event.client_payload.ref }}
             
