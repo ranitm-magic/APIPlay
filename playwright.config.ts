@@ -6,6 +6,8 @@ export default defineConfig({
   reporter: 'html',
   use: {
     trace: 'on-first-retry',
+    browserName: 'chromium',
+    channel: 'chrome',   //force Chrome instead of bundled Chromium
   },
   projects: [
     {
