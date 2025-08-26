@@ -50,20 +50,63 @@ jobs:
         continue-on-error: true
         run: |
           if [ "${{ github.event.inputs.test_pattern }}" != "" ]; then
-            npx playwright test ${{ github.event.inputs.test_pattern }} --reporter=html,json > results.json
+            npx playwright test ${{ github.event.inputs.test_pattern }} --reporter=html --reporter=json:results.json
           else
-            npx playwright test --reporter=html,json > results.json
+            npx playwright test --reporter=html --reporter=json:results.json
+          fi
+
+      - name: Debug JSON structure
+        if: always()
+        run: |
+          if [ -f "results.json" ]; then
+            echo "JSON file exists, size: $(wc -c < results.json)"
+            echo "First 500 chars of results.json:"
+            head -c 500 results.json || echo "Could not read file"
+            echo ""
+            echo "JSON structure check:"
+            jq -r 'keys' results.json || echo "Invalid JSON"
+          else
+            echo "results.json not found"
           fi
 
       - name: Save test summary
         id: test-summary
         run: |
           if [ -f "results.json" ]; then
-            passed=$(jq -r '[.suites[]?.specs[]?.tests[]? | select(.results[]?.status=="passed")] | length // 0' results.json)
-            failed=$(jq -r '[.suites[]?.specs[]?.tests[]? | select(.results[]?.status=="failed")] | length // 0' results.json)
-            skipped=$(jq -r '[.suites[]?.specs[]?.tests[]? | select(.results[]?.status=="skipped")] | length // 0' results.json)
-            duration=$(jq -r '.duration // 0 | . / 1000' results.json)
+            # More robust JSON parsing with multiple fallback strategies
+            passed=$(jq -r '
+              if .suites then 
+                [.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="passed")] | length
+              elif .tests then
+                [.tests[] | select(.status=="passed")] | length
+              else 
+                0 
+              end
+            ' results.json 2>/dev/null || echo "0")
             
+            failed=$(jq -r '
+              if .suites then 
+                [.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="failed")] | length
+              elif .tests then
+                [.tests[] | select(.status=="failed")] | length
+              else 
+                0 
+              end
+            ' results.json 2>/dev/null || echo "0")
+            
+            skipped=$(jq -r '
+              if .suites then 
+                [.suites[] | .specs[]? | .tests[]? | select(.results[]?.status=="skipped")] | length
+              elif .tests then
+                [.tests[] | select(.status=="skipped")] | length
+              else 
+                0 
+              end
+            ' results.json 2>/dev/null || echo "0")
+            
+            duration=$(jq -r '(.duration // 0) / 1000' results.json 2>/dev/null || echo "0")
+            
+            echo "Test counts found: passed=$passed, failed=$failed, skipped=$skipped, duration=${duration}s"
             echo "passed=${passed}" >> $GITHUB_OUTPUT
             echo "failed=${failed}" >> $GITHUB_OUTPUT
             echo "skipped=${skipped}" >> $GITHUB_OUTPUT
