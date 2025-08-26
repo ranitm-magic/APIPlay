@@ -246,7 +246,7 @@ jobs:
           secure: true
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: Playwright Test Results - ${{ steps.playwright-tests.outcome }}
+          subject: 🔥PLAYWRIGHT TEST RESULTS - ${{ steps.playwright-tests.outcome }}
           html_body: ${{ steps.generate-email.outputs.email_content }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Playwright Tests <${{ secrets.EMAIL_USERNAME }}>
