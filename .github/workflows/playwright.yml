@@ -50,9 +50,9 @@ jobs:
         continue-on-error: true
         run: |
           if [ "${{ github.event.inputs.test_pattern }}" != "" ]; then
-            npx playwright test ${{ github.event.inputs.test_pattern }} --reporter=html --reporter=json:results.json
+            PLAYWRIGHT_JSON_OUTPUT_NAME=results.json npx playwright test ${{ github.event.inputs.test_pattern }} --reporter=html --reporter=json
           else
-            npx playwright test --reporter=html --reporter=json:results.json
+            PLAYWRIGHT_JSON_OUTPUT_NAME=results.json npx playwright test --reporter=html --reporter=json
           fi
 
       - name: Debug JSON structure
