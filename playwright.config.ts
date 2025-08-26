@@ -7,15 +7,6 @@ export default defineConfig({
   use: {
     trace: 'on-first-retry',
     browserName: 'chromium',
-    channel: 'chrome',   //force Chrome instead of bundled Chromium
+    channel: 'chrome',   // Force Google Chrome instead of bundled Chromium
   },
-  projects: [
-    {
-      name: 'chrome',
-      use: {
-        browserName: 'chromium',
-        channel: 'chrome',
-      },
-    },
-  ],
 });
