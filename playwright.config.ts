@@ -7,10 +7,6 @@ export default defineConfig({
   use: {
     trace: 'on-first-retry',
   },
-  projects: [
-    {
-      name: 'api-testing',
-      testMatch: /.*\.test\.ts/,
-    },
-  ],
+  
+  
 });
