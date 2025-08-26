@@ -1,4 +1,4 @@
-name: Playwright Tests
+name: Advanced Playwright Tests
 
 on:
   repository_dispatch:
@@ -9,14 +9,104 @@ on:
         description: 'Custom test file pattern (e.g., src/tests/*.test.ts)'
         required: false
         type: string
+      environment:
+        description: 'Environment to test against'
+        required: false
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+          - development
+      browser:
+        description: 'Browser to test'
+        required: false
+        default: 'chromium'
+        type: choice
+        options:
+          - chromium
+      workers:
+        description: 'Number of parallel workers'
+        required: false
+        default: '4'
+        type: string
+      retries:
+        description: 'Number of retries for failed tests'
+        required: false
+        default: '2'
+        type: string
+      debug_mode:
+        description: 'Enable debug mode'
+        required: false
+        default: false
+        type: boolean
+  schedule:
+    # Run tests daily at 6 AM UTC
+    - cron: '0 6 * * *'
+
+env:
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
+  CI: true
 
 jobs:
-  test:
-    timeout-minutes: 60
+  setup:
     runs-on: ubuntu-latest
+    outputs:
+      test-matrix: ${{ steps.test-matrix.outputs.matrix }}
+      cache-key: ${{ steps.cache-key.outputs.key }}
+      environment: ${{ steps.environment.outputs.env }}
     steps:
       - uses: actions/checkout@v4
       
+      - name: Determine environment
+        id: environment
+        run: |
+          if [ "${{ github.event.inputs.environment }}" != "" ]; then
+            echo "env=${{ github.event.inputs.environment }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "env=production" >> $GITHUB_OUTPUT
+          else
+            echo "env=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate cache key
+        id: cache-key
+        run: |
+          echo "key=${{ runner.os }}-playwright-${{ hashFiles('package-lock.json', 'playwright.config.ts') }}-$(date +%Y%m%d)" >> $GITHUB_OUTPUT
+
+      - name: Generate test matrix
+        id: test-matrix
+        run: |
+          echo 'matrix={"browser": ["chromium"], "shard": [1, 2, 3, 4]}' >> $GITHUB_OUTPUT
+
+  test:
+    needs: setup
+    timeout-minutes: 90
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.setup.outputs.test-matrix) }}
+    
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+          POSTGRES_DB: testdb
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -24,60 +114,313 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci
+          npm audit --audit-level moderate
 
       - name: Cache Playwright browsers
         id: cache-playwright
         uses: actions/cache@v4
         with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+          path: |
+            ~/.cache/ms-playwright
+            ~/.cache/playwright
+          key: ${{ needs.setup.outputs.cache-key }}-${{ matrix.browser }}
           restore-keys: |
+            ${{ runner.os }}-playwright-${{ matrix.browser }}-
             ${{ runner.os }}-playwright-
 
-      - name: Install Playwright (Chromium only)
+      - name: Install Playwright browsers
         if: steps.cache-playwright.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-
-      - name: Run Playwright tests (Chrome only)
         run: |
+          npx playwright install --with-deps chromium
+
+      - name: Setup test environment
+        run: |
+          # Create test database
+          PGPASSWORD=postgres psql -h localhost -U postgres -d testdb -c "CREATE SCHEMA IF NOT EXISTS test_schema;"
+          
+          # Set environment variables
+          echo "TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/testdb" >> $GITHUB_ENV
+          echo "PLAYWRIGHT_BROWSER=chromium" >> $GITHUB_ENV
+          echo "PLAYWRIGHT_WORKERS=${{ github.event.inputs.workers || '4' }}" >> $GITHUB_ENV
+          echo "PLAYWRIGHT_RETRIES=${{ github.event.inputs.retries || '2' }}" >> $GITHUB_ENV
+          echo "TEST_ENVIRONMENT=${{ needs.setup.outputs.environment }}" >> $GITHUB_ENV
+
+      - name: Health check application
+        run: |
+          echo "Checking application health..."
+          timeout 60 bash -c 'until curl -f http://localhost:3000/health 2>/dev/null; do sleep 5; done' || true
+
+      - name: Run Playwright tests
+        id: playwright-test
+        run: |
+          # Set test command based on inputs
           if [ "${{ github.event.inputs.test_pattern }}" != "" ]; then
-            npx playwright test ${{ github.event.inputs.test_pattern }}
+            TEST_PATTERN="${{ github.event.inputs.test_pattern }}"
           else
-            npx playwright test
+            TEST_PATTERN=""
           fi
-      
-      - name: Upload Playwright Report
+          
+          # Configure debug mode
+          if [ "${{ github.event.inputs.debug_mode }}" = "true" ]; then
+            export PWDEBUG=1
+            export DEBUG=pw:api
+          fi
+          
+          # Run tests with sharding (Chrome only)
+          npx playwright test \
+            --project=chromium \
+            --shard=${{ matrix.shard }}/4 \
+            --workers=${{ env.PLAYWRIGHT_WORKERS }} \
+            --retries=${{ env.PLAYWRIGHT_RETRIES }} \
+            --reporter=html,json,junit \
+            --output-dir=test-results-chromium-${{ matrix.shard }} \
+            ${TEST_PATTERN}
+        env:
+          PLAYWRIGHT_HTML_REPORT: playwright-report-chromium-${{ matrix.shard }}
+          PLAYWRIGHT_JSON_OUTPUT_NAME: results-chromium-${{ matrix.shard }}.json
+
+      - name: Generate test summary
+        if: always()
+        run: |
+          echo "## Test Results - Chrome (Shard ${{ matrix.shard }})" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "results-chromium-${{ matrix.shard }}.json" ]; then
+            TOTAL=$(jq '.stats.total' results-chromium-${{ matrix.shard }}.json)
+            PASSED=$(jq '.stats.passed' results-chromium-${{ matrix.shard }}.json)
+            FAILED=$(jq '.stats.failed' results-chromium-${{ matrix.shard }}.json)
+            SKIPPED=$(jq '.stats.skipped' results-chromium-${{ matrix.shard }}.json)
+            
+            echo "- **Total Tests**: $TOTAL" >> $GITHUB_STEP_SUMMARY
+            echo "- **Passed**: $PASSED ✅" >> $GITHUB_STEP_SUMMARY
+            echo "- **Failed**: $FAILED ❌" >> $GITHUB_STEP_SUMMARY
+            echo "- **Skipped**: $SKIPPED ⏭️" >> $GITHUB_STEP_SUMMARY
+            echo "- **Success Rate**: $(echo "scale=2; $PASSED * 100 / $TOTAL" | bc)%" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Upload test results
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report
-          path: playwright-report/
+          name: test-results-chromium-${{ matrix.shard }}
+          path: |
+            test-results-chromium-${{ matrix.shard }}/
+            results-chromium-${{ matrix.shard }}.json
+            playwright-report-chromium-${{ matrix.shard }}/
           retention-days: 30
+
+      - name: Upload screenshots and videos
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: failures-chromium-${{ matrix.shard }}
+          path: |
+            test-results-chromium-${{ matrix.shard }}/
+            playwright-report-chromium-${{ matrix.shard }}/
+          retention-days: 7
+
+      - name: Publish test results
+        uses: dorny/test-reporter@v1
+        if: always()
+        with:
+          name: Playwright Tests (Chrome-${{ matrix.shard }})
+          path: 'results-chromium-${{ matrix.shard }}.xml'
+          reporter: java-junit
+
+  collect-results:
+    needs: [setup, test]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all test results
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-*
+          merge-multiple: true
+
+      - name: Merge test results
+        run: |
+          # Merge all JSON results
+          jq -s '
+            {
+              stats: {
+                total: map(.stats.total) | add,
+                passed: map(.stats.passed) | add,
+                failed: map(.stats.failed) | add,
+                skipped: map(.stats.skipped) | add
+              },
+              suites: map(.suites) | add
+            }
+          ' results-*.json > merged-results.json
           
-      - name: Send email notification
+          # Calculate overall metrics
+          TOTAL=$(jq '.stats.total' merged-results.json)
+          PASSED=$(jq '.stats.passed' merged-results.json)
+          FAILED=$(jq '.stats.failed' merged-results.json)
+          SUCCESS_RATE=$(echo "scale=2; $PASSED * 100 / $TOTAL" | bc)
+          
+          echo "TOTAL_TESTS=$TOTAL" >> $GITHUB_ENV
+          echo "PASSED_TESTS=$PASSED" >> $GITHUB_ENV
+          echo "FAILED_TESTS=$FAILED" >> $GITHUB_ENV
+          echo "SUCCESS_RATE=$SUCCESS_RATE" >> $GITHUB_ENV
+
+      - name: Generate comprehensive summary
+        run: |
+          echo "# 🎭 Playwright Test Results Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Overall Statistics" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment**: ${{ needs.setup.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Tests**: ${{ env.TOTAL_TESTS }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Passed**: ${{ env.PASSED_TESTS }} ✅" >> $GITHUB_STEP_SUMMARY
+          echo "- **Failed**: ${{ env.FAILED_TESTS }} ❌" >> $GITHUB_STEP_SUMMARY
+          echo "- **Success Rate**: ${{ env.SUCCESS_RATE }}%" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ env.FAILED_TESTS }}" -gt "0" ]; then
+            echo "## ❌ Failed Tests" >> $GITHUB_STEP_SUMMARY
+            jq -r '.suites[] | select(.specs[].tests[].results[].status == "failed") | .specs[].tests[] | select(.results[].status == "failed") | "- " + .title' merged-results.json >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Create Slack notification payload
+        if: always()
+        run: |
+          STATUS_EMOJI="✅"
+          STATUS_COLOR="good"
+          if [ "${{ env.FAILED_TESTS }}" -gt "0" ]; then
+            STATUS_EMOJI="❌"
+            STATUS_COLOR="danger"
+          fi
+          
+          cat > slack-payload.json << EOF
+          {
+            "attachments": [
+              {
+                "color": "$STATUS_COLOR",
+                "title": "$STATUS_EMOJI Playwright Test Results",
+                "fields": [
+                  {
+                    "title": "Environment",
+                    "value": "${{ needs.setup.outputs.environment }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Success Rate",
+                    "value": "${{ env.SUCCESS_RATE }}%",
+                    "short": true
+                  },
+                  {
+                    "title": "Total Tests",
+                    "value": "${{ env.TOTAL_TESTS }}",
+                    "short": true
+                  },
+                  {
+                    "title": "Failed Tests",
+                    "value": "${{ env.FAILED_TESTS }}",
+                    "short": true
+                  }
+                ],
+                "actions": [
+                  {
+                    "type": "button",
+                    "text": "View Results",
+                    "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  }
+                ]
+              }
+            ]
+          }
+          EOF
+
+      - name: Send Slack notification
+        if: always()
+        uses: 8398a7/action-slack@v3
+        with:
+          status: custom
+          custom_payload: |
+            ${{ steps.slack-payload.outputs.payload }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+      - name: Send enhanced email notification
         if: always()
         uses: dawidd6/action-send-mail@v3
         with:
           server_address: smtp.gmail.com
           server_port: 465
-          username: ${{secrets.EMAIL_USERNAME}}
-          password: ${{secrets.EMAIL_PASSWORD}}
-          subject: Playwright Test Results - ${{ job.status }}
-          body: |
-            Playwright Test Results for Web Application
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: |
+            🎭 Playwright Tests - ${{ job.status }} (${{ env.SUCCESS_RATE }}% Success)
+          html_body: |
+            <html>
+            <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+              <h2>🎭 Playwright Test Results</h2>
+              
+              <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h3>📊 Test Statistics</h3>
+                <ul>
+                  <li><strong>Environment:</strong> ${{ needs.setup.outputs.environment }}</li>
+                  <li><strong>Total Tests:</strong> ${{ env.TOTAL_TESTS }}</li>
+                  <li><strong>Passed:</strong> ${{ env.PASSED_TESTS }} ✅</li>
+                  <li><strong>Failed:</strong> ${{ env.FAILED_TESTS }} ❌</li>
+                  <li><strong>Success Rate:</strong> ${{ env.SUCCESS_RATE }}%</li>
+                </ul>
+              </div>
 
-            Status: ${{ job.status }}
-            
-            Current Repository: ${{ github.repository }}
-            Triggered by: ${{ github.event_name }}
-            Web App Commit: ${{ github.event.client_payload.sha }}
-            Author: ${{ github.event.client_payload.commit_author }}
-            Comit ID: ${{ github.event.client_payload.commit_id }}
-            Web App Repository: ${{ github.event.client_payload.repository }}
-            Branch: ${{ github.event.client_payload.ref }}
-            
-            View detailed report in the GitHub Actions artifacts:
-            ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          to: ${{secrets.NOTIFICATION_EMAIL}}
-          from: Playwright Tests
+              <div style="background: #e8f4fd; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                <h3>🔍 Execution Details</h3>
+                <ul>
+                  <li><strong>Repository:</strong> ${{ github.repository }}</li>
+                  <li><strong>Triggered by:</strong> ${{ github.event_name }}</li>
+                  <li><strong>Run ID:</strong> ${{ github.run_id }}</li>
+                  <li><strong>Commit:</strong> ${{ github.sha }}</li>
+                  <li><strong>Branch:</strong> ${{ github.ref_name }}</li>
+                </ul>
+              </div>
+
+              <p>
+                <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 
+                   style="background: #007cba; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                   📊 View Detailed Report
+                </a>
+              </p>
+              
+              <hr>
+              <p style="font-size: 12px; color: #666;">
+                This email was automatically generated by GitHub Actions.<br>
+                Time: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+              </p>
+            </body>
+            </html>
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: "Playwright Tests <${{ secrets.EMAIL_USERNAME }}>"
+
+      - name: Update deployment status
+        if: github.event_name == 'repository_dispatch'
+        run: |
+          STATUS="success"
+          if [ "${{ env.FAILED_TESTS }}" -gt "0" ]; then
+            STATUS="failure"
+          fi
+          
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "${{ github.api_url }}/repos/${{ github.event.client_payload.repository }}/statuses/${{ github.event.client_payload.sha }}" \
+            -d "{
+              \"state\": \"$STATUS\",
+              \"target_url\": \"${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}\",
+              \"description\": \"Playwright tests: ${{ env.PASSED_TESTS }}/${{ env.TOTAL_TESTS }} passed (${{ env.SUCCESS_RATE }}%)\",
+              \"context\": \"continuous-integration/playwright\"
+            }"
+
+      - name: Upload merged results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: merged-test-results
+          path: merged-results.json
+          retention-days: 90
