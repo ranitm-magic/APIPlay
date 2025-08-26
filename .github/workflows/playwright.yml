@@ -35,36 +35,57 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-playwright-
 
-      - name: Install Playwright (Chromium only)
-        if: steps.cache-playwright.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
+      - name: Install Playwright browsers
+        run: |
+          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
+            echo "Browsers found in cache, ensuring they are properly installed..."
+            npx playwright install-deps chromium
+          else
+            echo "Installing Playwright browsers and dependencies..."
+            npx playwright install --with-deps chromium
+          fi
 
-      - name: Run Playwright tests (Chrome only) with JSON report
+      - name: Run Playwright tests
+        id: playwright-tests
+        continue-on-error: true
         run: |
           if [ "${{ github.event.inputs.test_pattern }}" != "" ]; then
-            npx playwright test ${{ github.event.inputs.test_pattern }} --reporter=json > results.json
+            npx playwright test ${{ github.event.inputs.test_pattern }} --reporter=html,json > results.json
           else
-            npx playwright test --reporter=json > results.json
+            npx playwright test --reporter=html,json > results.json
           fi
 
       - name: Save test summary
         id: test-summary
         run: |
-          passed=$(jq '[.suites[].specs[].tests[] | select(.results[].status=="passed")] | length' results.json)
-          failed=$(jq '[.suites[].specs[].tests[] | select(.results[].status=="failed")] | length' results.json)
-          skipped=$(jq '[.suites[].specs[].tests[] | select(.results[].status=="skipped")] | length' results.json)
-          duration=$(jq '.duration / 1000' results.json)
-          echo "passed=$passed" >> $GITHUB_OUTPUT
-          echo "failed=$failed" >> $GITHUB_OUTPUT
-          echo "skipped=$skipped" >> $GITHUB_OUTPUT
-          echo "duration=${duration}s" >> $GITHUB_OUTPUT
+          if [ -f "results.json" ]; then
+            passed=$(jq -r '[.suites[]?.specs[]?.tests[]? | select(.results[]?.status=="passed")] | length // 0' results.json)
+            failed=$(jq -r '[.suites[]?.specs[]?.tests[]? | select(.results[]?.status=="failed")] | length // 0' results.json)
+            skipped=$(jq -r '[.suites[]?.specs[]?.tests[]? | select(.results[]?.status=="skipped")] | length // 0' results.json)
+            duration=$(jq -r '.duration // 0 | . / 1000' results.json)
+            
+            echo "passed=${passed}" >> $GITHUB_OUTPUT
+            echo "failed=${failed}" >> $GITHUB_OUTPUT
+            echo "skipped=${skipped}" >> $GITHUB_OUTPUT
+            echo "duration=${duration}s" >> $GITHUB_OUTPUT
+            echo "results_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "results.json not found, setting default values"
+            echo "passed=0" >> $GITHUB_OUTPUT
+            echo "failed=0" >> $GITHUB_OUTPUT
+            echo "skipped=0" >> $GITHUB_OUTPUT
+            echo "duration=0s" >> $GITHUB_OUTPUT
+            echo "results_available=false" >> $GITHUB_OUTPUT
+          fi
 
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
-          path: playwright-report/
+          path: |
+            playwright-report/
+            results.json
           retention-days: 30
           
       - name: Send email notification
@@ -73,19 +94,21 @@ jobs:
         with:
           server_address: smtp.gmail.com
           server_port: 465
-          username: ${{secrets.EMAIL_USERNAME}}
-          password: ${{secrets.EMAIL_PASSWORD}}
-          subject: Playwright Test Results - ${{ job.status }}
-          body: |
+          secure: true
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: Playwright Test Results - ${{ steps.playwright-tests.outcome }}
+          html_body: |
             <html>
               <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <h2 style="color:#2E86C1;"> Playwright Test Results</h2>
+                <h2 style="color:#2E86C1;">🎭 Playwright Test Results</h2>
                 <p><strong>Status:</strong> 
-                  <span style="color:${{ job.status == 'success' && '#28a745' || '#e74c3c' }};">
-                    ${{ job.status }}
+                  <span style="color:${{ steps.playwright-tests.outcome == 'success' && '#28a745' || '#e74c3c' }};">
+                    ${{ steps.playwright-tests.outcome }}
                   </span>
                 </p>
 
+                ${{ steps.test-summary.outputs.results_available == 'true' && '
                 <h3>Test Summary</h3>
                 <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 60%; max-width: 400px; text-align:center;">
                   <tr style="background:#f2f2f2;">
@@ -95,12 +118,13 @@ jobs:
                     <th>Duration ⏱</th>
                   </tr>
                   <tr>
-                    <td style="color:#28a745;">${{ steps.test-summary.outputs.passed }}</td>
-                    <td style="color:#e74c3c;">${{ steps.test-summary.outputs.failed }}</td>
-                    <td style="color:#f39c12;">${{ steps.test-summary.outputs.skipped }}</td>
-                    <td>${{ steps.test-summary.outputs.duration }}</td>
+                    <td style="color:#28a745;">' || '' }}${{ steps.test-summary.outputs.passed }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
+                    <td style="color:#e74c3c;">' || '' }}${{ steps.test-summary.outputs.failed }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
+                    <td style="color:#f39c12;">' || '' }}${{ steps.test-summary.outputs.skipped }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
+                    <td>' || '' }}${{ steps.test-summary.outputs.duration }}${{ steps.test-summary.outputs.results_available == 'true' && '</td>
                   </tr>
                 </table>
+                ' || '<p style="color:#e74c3c;">⚠️ Test results could not be parsed. Check the workflow logs for details.</p>' }}
                 
                 <h3 style="margin-top:20px;">📌 Metadata</h3>
                 <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%; max-width: 600px;">
@@ -112,25 +136,37 @@ jobs:
                     <td><strong>Triggered by</strong></td>
                     <td>${{ github.event_name }}</td>
                   </tr>
+                  ${{ github.event_name == 'repository_dispatch' && '
                   <tr>
                     <td><strong>Web App Commit</strong></td>
-                    <td><code>${{ github.event.client_payload.sha }}</code></td>
+                    <td><code>' || '' }}${{ github.event.client_payload.sha || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</code></td>
                   </tr>
                   <tr>
                     <td><strong>Author</strong></td>
-                    <td>${{ github.event.client_payload.commit_author }}</td>
+                    <td>' || '' }}${{ github.event.client_payload.commit_author || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
                   </tr>
                   <tr>
                     <td><strong>Commit ID</strong></td>
-                    <td><code>${{ github.event.client_payload.commit_id }}</code></td>
+                    <td><code>' || '' }}${{ github.event.client_payload.commit_id || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</code></td>
                   </tr>
                   <tr>
                     <td><strong>Web App Repository</strong></td>
-                    <td>${{ github.event.client_payload.repository }}</td>
+                    <td>' || '' }}${{ github.event.client_payload.repository || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
                   </tr>
                   <tr>
                     <td><strong>Branch</strong></td>
-                    <td>${{ github.event.client_payload.ref }}</td>
+                    <td>' || '' }}${{ github.event.client_payload.ref || 'N/A' }}${{ github.event_name == 'repository_dispatch' && '</td>
+                  </tr>
+                  ' || '' }}
+                  ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.test_pattern && '
+                  <tr>
+                    <td><strong>Test Pattern</strong></td>
+                    <td><code>' || '' }}${{ github.event.inputs.test_pattern }}${{ github.event_name == 'workflow_dispatch' && github.event.inputs.test_pattern && '</code></td>
+                  </tr>
+                  ' || '' }}
+                  <tr>
+                    <td><strong>Workflow Run</strong></td>
+                    <td>${{ github.run_id }}</td>
                   </tr>
                 </table>
 
@@ -145,5 +181,5 @@ jobs:
                 <p style="font-size:12px; color:#999;">This is an automated email from GitHub Actions - Playwright CI.</p>
               </body>
             </html>
-          to: ${{secrets.NOTIFICATION_EMAIL}}
-          from: Playwright Tests
+          to: ${{ secrets.NOTIFICATION_EMAIL }}
+          from: Playwright Tests <${{ secrets.EMAIL_USERNAME }}>
