@@ -50,16 +50,11 @@ jobs:
         continue-on-error: true
         run: |
           set +e
-          
-          # Use environment variable for JSON output
-          export PLAYWRIGHT_JSON_OUTPUT_NAME=results.json
-          
           if [ -n "${{ github.event.inputs.test_pattern }}" ]; then
-            npx playwright test "${{ github.event.inputs.test_pattern }}" --reporter=html --reporter=json
+            npx playwright test "${{ github.event.inputs.test_pattern }}" --reporter=html,json=results.json
           else
-            npx playwright test --reporter=html --reporter=json
+            npx playwright test --reporter=html,json=results.json
           fi
-          
           exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
           exit 0
@@ -70,42 +65,17 @@ jobs:
           if [ -f "results.json" ]; then
             echo "=== ANALYZING RESULTS.JSON ==="
             
-            # Initialize default values
-            passed=0
-            failed=0
-            skipped=0
-            duration=0
-            
-            # Parse the stats format: {"startTime":"...","duration":12191.157,"expected":18,"skipped":0,"unexpected":0,"flaky":0}
-            if jq -e '.stats' results.json > /dev/null 2>&1; then
-              echo "Found stats format"
-              passed=$(jq -r '.stats.expected' results.json)
-              failed=$(jq -r '.stats.unexpected' results.json)
-              skipped=$(jq -r '.stats.skipped' results.json)
-              duration=$(jq -r '.stats.duration / 1000' results.json)
-              echo "Parsed from stats: passed=$passed, failed=$failed, skipped=$skipped, duration=${duration}s"
-            else
-              echo "Unknown JSON format, using fallback"
-              # Try to extract any available information
-              passed=$(jq -r '.expected // 0' results.json)
-              failed=$(jq -r '.unexpected // 0' results.json)
-              skipped=$(jq -r '.skipped // 0' results.json)
-              duration=$(jq -r '(.duration // 0) / 1000' results.json)
-            fi
-            
-            # Ensure numeric values and handle nulls
-            passed=${passed:-0}
-            failed=${failed:-0}
-            skipped=${skipped:-0}
-            duration=${duration:-0}
-            
+            passed=$(jq -r '.stats.expected // 0' results.json)
+            failed=$(jq -r '.stats.unexpected // 0' results.json)
+            skipped=$(jq -r '.stats.skipped // 0' results.json)
+            duration=$(jq -r '(.stats.duration // 0) / 1000' results.json)
+
             echo "Final counts: passed=$passed, failed=$failed, skipped=$skipped, duration=${duration}s"
             echo "passed=${passed}" >> $GITHUB_OUTPUT
             echo "failed=${failed}" >> $GITHUB_OUTPUT
             echo "skipped=${skipped}" >> $GITHUB_OUTPUT
             echo "duration=${duration}" >> $GITHUB_OUTPUT
             echo "results_available=true" >> $GITHUB_OUTPUT
-            
           else
             echo "results.json not found, setting default values"
             echo "passed=0" >> $GITHUB_OUTPUT
@@ -125,25 +95,37 @@ jobs:
             results.json
           retention-days: 30
 
+      - name: Set status color
+        id: status-color
+        run: |
+          if [ "${{ steps.test-summary.outputs.failed }}" -gt 0 ]; then
+            echo "status_color=#e74c3c" >> $GITHUB_OUTPUT
+            echo "status_text=failed" >> $GITHUB_OUTPUT
+          else
+            echo "status_color=#28a745" >> $GITHUB_OUTPUT
+            echo "status_text=success" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate email content
         if: always()
         id: generate-email
         run: |
-          # Get repository dispatch data if available
-          client_payload="${{ toJSON(github.event.client_payload) }}"
-          sha=$(echo "$client_payload" | jq -r '.sha // "N/A"')
-          commit_author=$(echo "$client_payload" | jq -r '.commit_author // "N/A"')
-          commit_id=$(echo "$client_payload" | jq -r '.commit_id // "N/A"')
-          repository=$(echo "$client_payload" | jq -r '.repository // "N/A"')
-          ref=$(echo "$client_payload" | jq -r '.ref // "N/A"')
+          # Save repository_dispatch payload safely
+          echo '${{ toJSON(github.event.client_payload) }}' > client_payload.json
           
+          sha=$(jq -r '.sha // "N/A"' client_payload.json)
+          commit_author=$(jq -r '.commit_author // "N/A"' client_payload.json)
+          commit_id=$(jq -r '.commit_id // "N/A"' client_payload.json)
+          repository=$(jq -r '.repository // "N/A"' client_payload.json)
+          ref=$(jq -r '.ref // "N/A"' client_payload.json)
+
           cat > email_body.html << EOF
           <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
               <h2 style="color:#2E86C1;">🎭 Playwright Test Results</h2>
               <p><strong>Status:</strong> 
-                <span style="color:${{ steps.playwright-tests.outcome == 'success' && '#28a745' || '#e74c3c' }};">
-                  ${{ steps.playwright-tests.outcome }}
+                <span style="color:${{ steps.status-color.outputs.status_color }};">
+                  ${{ steps.status-color.outputs.status_text }}
                 </span>
               </p>
 
@@ -175,7 +157,6 @@ jobs:
                 </tr>
           EOF
           
-          # Add repository_dispatch specific fields
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
             cat >> email_body.html << EOF
                 <tr>
@@ -201,7 +182,6 @@ jobs:
           EOF
           fi
           
-          # Add workflow_dispatch test pattern if provided
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.test_pattern }}" ]; then
             cat >> email_body.html << EOF
                 <tr>
@@ -231,7 +211,6 @@ jobs:
           </html>
           EOF
           
-          # Read the generated content for the email action
           email_content=$(cat email_body.html)
           echo "email_content<<EOF" >> $GITHUB_OUTPUT
           echo "$email_content" >> $GITHUB_OUTPUT
@@ -246,7 +225,7 @@ jobs:
           secure: true
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: 🔥PLAYWRIGHT TEST RESULTS - ${{ steps.playwright-tests.outcome }}
+          subject: 🔥PLAYWRIGHT TEST RESULTS - ${{ steps.status-color.outputs.status_text }}
           html_body: ${{ steps.generate-email.outputs.email_content }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Playwright Tests <${{ secrets.EMAIL_USERNAME }}>
