@@ -183,17 +183,29 @@ jobs:
               </p>
           EOF
           
-          # Add success celebration message
-          if [ "${{ steps.playwright-tests.outcome }}" = "success" ]; then
+          # Add contextual message based on test results
+          failed_count=${{ steps.test-summary.outputs.failed }}
+          skipped_count=${{ steps.test-summary.outputs.skipped }}
+          
+          if [ "$failed_count" -eq 0 ] && [ "$skipped_count" -eq 0 ]; then
+            # All tests passed, none skipped
             cat >> email_body.html << EOF
               <div style="background:#d4edda; border-left:4px solid #28a745; padding:15px; margin:15px 0; border-radius: 4px;">
                 ✨ <strong>Excellent!</strong> All tests passed successfully. Great work team!
               </div>
           EOF
-          else
+          elif [ "$failed_count" -eq 0 ] && [ "$skipped_count" -gt 0 ]; then
+            # No failures but some skipped
+            cat >> email_body.html << EOF
+              <div style="background:#fff3cd; border-left:4px solid #ffc107; padding:15px; margin:15px 0; border-radius: 4px;">
+                ✅ <strong>Tests Passed!</strong> All executed tests passed, but $skipped_count test(s) were skipped.
+              </div>
+          EOF
+          elif [ "$failed_count" -gt 0 ]; then
+            # Some tests failed
             cat >> email_body.html << EOF
               <div style="background:#f8d7da; border-left:4px solid #e74c3c; padding:15px; margin:15px 0; border-radius: 4px;">
-                ⚠️ <strong>Attention needed:</strong> Some tests failed. Please review the results below.
+                ⚠️ <strong>Attention needed:</strong> $failed_count test(s) failed. Please review the results below.
               </div>
           EOF
           fi
@@ -216,7 +228,7 @@ jobs:
               </table>
               
               <h3 style="margin-top:30px;">📌 Metadata</h3>
-              <table border="1" cellspacing="0" cellpadding="10" class="metadata-table" style="border-collapse: collapse; width: 100%; max-width: 700px; border-radius: 8px; overflow: hidden;">
+              <table border="1" cellspacing="0" cellpadding="10" class="metadata-table" style="border-collapse: collapse; width: 100%; max-width: 700px; border-radius: 8px; overflow: hidden; border: 2px solid #ddd;">
                 <tr style="background:#f8f9fa;">
                   <td style="border: 1px solid #ddd; width: 180px; font-weight: bold;">Repository</td>
                   <td style="border: 1px solid #ddd; background: white;">${{ github.repository }}</td>
@@ -280,7 +292,7 @@ jobs:
           EOF
           
           # Add failed test details if there are failures
-          if [ "${{ steps.playwright-tests.outcome }}" != "success" ]; then
+          if [ "$failed_count" -gt 0 ]; then
             cat >> email_body.html << EOF
               <h3 style="margin-top:30px; color:#e74c3c;">🔍 Need More Details?</h3>
               <p style="background:#f8f9fa; padding:15px; border-radius:5px; border-left:4px solid #e74c3c;">
