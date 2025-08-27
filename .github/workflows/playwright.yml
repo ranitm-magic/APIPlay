@@ -37,83 +37,44 @@ jobs:
 
       - name: Install Playwright browsers
         run: |
-          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
-            echo "Browsers found in cache, verifying installation..."
-            npx playwright install --dry-run > /dev/null 2>&1 || npx playwright install chromium
-          else
-            echo "Installing Playwright browsers and dependencies..."
-            npx playwright install --with-deps chromium
-          fi
+          echo "Checking if browsers are installed..."
+          npx playwright install --check-deps chromium || npx playwright install --with-deps chromium
 
       - name: Run Playwright tests
         id: playwright-tests
         continue-on-error: true
         run: |
           set +e
-          
-          # Use environment variable for JSON output
           export PLAYWRIGHT_JSON_OUTPUT_NAME=results.json
-          
           if [ -n "${{ github.event.inputs.test_pattern }}" ]; then
             npx playwright test "${{ github.event.inputs.test_pattern }}" --reporter=html --reporter=json
           else
             npx playwright test --reporter=html --reporter=json
           fi
-          
           exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          exit 0
+          exit $exit_code
 
       - name: Parse test results
         id: test-summary
         run: |
           if [ -f "results.json" ]; then
             echo "=== ANALYZING RESULTS.JSON ==="
-            
-            # Initialize default values
-            passed=0
-            failed=0
-            skipped=0
-            duration=0
-            
-            # Parse the stats format: {"startTime":"...","duration":12191.157,"expected":18,"skipped":0,"unexpected":0,"flaky":0}
-            if jq -e '.stats' results.json > /dev/null 2>&1; then
-              echo "Found stats format"
-              passed=$(jq -r '.stats.expected' results.json)
-              failed=$(jq -r '.stats.unexpected' results.json)
-              skipped=$(jq -r '.stats.skipped' results.json)
-              duration=$(jq -r '.stats.duration / 1000' results.json)
-              echo "Parsed from stats: passed=$passed, failed=$failed, skipped=$skipped, duration=${duration}s"
-            else
-              echo "Unknown JSON format, using fallback"
-              # Try to extract any available information
-              passed=$(jq -r '.expected // 0' results.json)
-              failed=$(jq -r '.unexpected // 0' results.json)
-              skipped=$(jq -r '.skipped // 0' results.json)
-              duration=$(jq -r '(.duration // 0) / 1000' results.json)
-            fi
-            
-            # Ensure numeric values and handle nulls
-            passed=${passed:-0}
-            failed=${failed:-0}
-            skipped=${skipped:-0}
-            duration=${duration:-0}
-            
-            echo "Final counts: passed=$passed, failed=$failed, skipped=$skipped, duration=${duration}s"
-            echo "passed=${passed}" >> $GITHUB_OUTPUT
-            echo "failed=${failed}" >> $GITHUB_OUTPUT
-            echo "skipped=${skipped}" >> $GITHUB_OUTPUT
-            echo "duration=${duration}" >> $GITHUB_OUTPUT
+            passed=$(jq -r '.stats.expected // 0' results.json)
+            failed=$(jq -r '.stats.unexpected // 0' results.json)
+            skipped=$(jq -r '.stats.skipped // 0' results.json)
+            duration=$(jq -r '(.stats.duration // 0) / 1000' results.json)
+            echo "parsed results: passed=$passed failed=$failed skipped=$skipped duration=${duration}s"
             echo "results_available=true" >> $GITHUB_OUTPUT
-            
           else
-            echo "results.json not found, setting default values"
-            echo "passed=0" >> $GITHUB_OUTPUT
-            echo "failed=0" >> $GITHUB_OUTPUT
-            echo "skipped=0" >> $GITHUB_OUTPUT
-            echo "duration=0" >> $GITHUB_OUTPUT
+            echo "results.json not found"
+            passed=0; failed=0; skipped=0; duration=0
             echo "results_available=false" >> $GITHUB_OUTPUT
           fi
+          echo "passed=$passed" >> $GITHUB_OUTPUT
+          echo "failed=$failed" >> $GITHUB_OUTPUT
+          echo "skipped=$skipped" >> $GITHUB_OUTPUT
+          echo "duration=$duration" >> $GITHUB_OUTPUT
 
       - name: Upload Playwright Report
         uses: actions/upload-artifact@v4
@@ -129,205 +90,102 @@ jobs:
         if: always()
         id: generate-email
         run: |
-          # Get current timestamp
           current_time=$(date -u '+%Y-%m-%d %H:%M:%S UTC')
-          
-          # Get repository dispatch data if available
           client_payload="${{ toJSON(github.event.client_payload) }}"
-          
-          # Validate JSON and set defaults
           if ! echo "$client_payload" | jq empty 2>/dev/null; then
-            echo "Invalid JSON in client_payload, using defaults"
             client_payload='{}'
           fi
-          
+
           sha=$(echo "$client_payload" | jq -r '.sha // "N/A"')
           commit_author=$(echo "$client_payload" | jq -r '.commit_author // "N/A"')
           commit_id=$(echo "$client_payload" | jq -r '.commit_id // "N/A"')
           repository=$(echo "$client_payload" | jq -r '.repository // "N/A"')
           ref=$(echo "$client_payload" | jq -r '.ref // "N/A"')
-          
-          # Generate email subject
+
           test_status="${{ steps.playwright-tests.outcome }}"
           passed_count="${{ steps.test-summary.outputs.passed }}"
-          total_tests=$((${{ steps.test-summary.outputs.passed }} + ${{ steps.test-summary.outputs.failed }} + ${{ steps.test-summary.outputs.skipped }}))
-          
+          failed_count="${{ steps.test-summary.outputs.failed }}"
+          skipped_count="${{ steps.test-summary.outputs.skipped }}"
+          duration="${{ steps.test-summary.outputs.duration }}"
+          results_available="${{ steps.test-summary.outputs.results_available }}"
+
+          total_tests=$((passed_count + failed_count + skipped_count))
+
           if [ "$test_status" = "success" ]; then
             subject_emoji="✅"
             subject_status="SUCCESS"
+            status_color="#28a745"
           else
             subject_emoji="❌"
             subject_status="FAILED"
+            status_color="#e74c3c"
           fi
-          
-          subject="🎭 Playwright Tests - $subject_emoji $subject_status ($passed_count/$total_tests passed) - ${{ github.repository }}"
+
+          subject="[Playwright Tests] $subject_emoji $subject_status ($passed_count/$total_tests passed) - ${{ github.repository }}"
           echo "email_subject=$subject" >> $GITHUB_OUTPUT
-          
+
           cat > email_body.html << EOF
           <html>
-            <head>
-              <style>
-                @media only screen and (max-width: 600px) {
-                  .responsive-table { width: 100% !important; }
-                  .metadata-table { font-size: 14px !important; }
-                }
-              </style>
-            </head>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 800px; margin: 0 auto; padding: 20px;">
-              <h2 style="color:#2E86C1; margin-bottom: 20px;">🎭 Playwright Test Results</h2>
-              
+              <h2 style="color:#2E86C1;">🎭 Playwright Test Results</h2>
               <p><strong>Status:</strong> 
-                <span style="color:${{ steps.playwright-tests.outcome == 'success' && '#28a745' || '#e74c3c' }}; font-weight: bold; text-transform: uppercase;">
-                  ${{ steps.playwright-tests.outcome }}
+                <span style="color:$status_color; font-weight: bold; text-transform: uppercase;">
+                  $test_status
                 </span>
               </p>
           EOF
-          
-          # Add contextual message based on test results
-          failed_count=${{ steps.test-summary.outputs.failed }}
-          skipped_count=${{ steps.test-summary.outputs.skipped }}
-          
-          if [ "$failed_count" -eq 0 ] && [ "$skipped_count" -eq 0 ]; then
-            # All tests passed, none skipped
+
+          if [ "$results_available" = "false" ]; then
             cat >> email_body.html << EOF
-              <div style="background:#d4edda; border-left:4px solid #28a745; padding:15px; margin:15px 0; border-radius: 4px;">
-                ✨ <strong>Excellent!</strong> All tests passed successfully. Great work team!
+              <div style="background:#fff3cd; border-left:4px solid #ffc107; padding:15px; margin:15px 0;">
+                ⚠️ Test results not available. Please check workflow logs.
+              </div>
+          EOF
+          elif [ "$failed_count" -eq 0 ] && [ "$skipped_count" -eq 0 ]; then
+            cat >> email_body.html << EOF
+              <div style="background:#d4edda; border-left:4px solid #28a745; padding:15px; margin:15px 0;">
+                ✨ <strong>Excellent!</strong> All tests passed successfully.
               </div>
           EOF
           elif [ "$failed_count" -eq 0 ] && [ "$skipped_count" -gt 0 ]; then
-            # No failures but some skipped
             cat >> email_body.html << EOF
-              <div style="background:#fff3cd; border-left:4px solid #ffc107; padding:15px; margin:15px 0; border-radius: 4px;">
+              <div style="background:#fff3cd; border-left:4px solid #ffc107; padding:15px; margin:15px 0;">
                 ✅ <strong>Tests Passed!</strong> All executed tests passed, but $skipped_count test(s) were skipped.
               </div>
           EOF
           elif [ "$failed_count" -gt 0 ]; then
-            # Some tests failed
             cat >> email_body.html << EOF
-              <div style="background:#f8d7da; border-left:4px solid #e74c3c; padding:15px; margin:15px 0; border-radius: 4px;">
-                ⚠️ <strong>Attention needed:</strong> $failed_count test(s) failed. Please review the results below.
+              <div style="background:#f8d7da; border-left:4px solid #e74c3c; padding:15px; margin:15px 0;">
+                ⚠️ <strong>Attention:</strong> $failed_count test(s) failed. Please review the report.
               </div>
           EOF
           fi
-          
+
           cat >> email_body.html << EOF
-              <h3 style="margin-top: 25px;">📊 Test Summary</h3>
-              <table border="1" cellspacing="0" cellpadding="12" class="responsive-table" style="border-collapse: collapse; width: 70%; max-width: 500px; text-align:center; border-radius: 8px; overflow: hidden;">
+              <h3>📊 Test Summary</h3>
+              <table border="1" cellspacing="0" cellpadding="12" style="border-collapse: collapse; width: 100%; max-width: 500px; text-align:center;">
                 <tr style="background:#f2f2f2; font-weight: bold;">
-                  <th style="border: 1px solid #ddd;">Passed ✅</th>
-                  <th style="border: 1px solid #ddd;">Failed ❌</th>
-                  <th style="border: 1px solid #ddd;">Skipped ⚡</th>
-                  <th style="border: 1px solid #ddd;">Duration ⏱</th>
+                  <th>Passed ✅</th>
+                  <th>Failed ❌</th>
+                  <th>Skipped ⚡</th>
+                  <th>Duration ⏱</th>
                 </tr>
-                <tr style="background: white;">
-                  <td style="color:#28a745; font-weight: bold; border: 1px solid #ddd;">${{ steps.test-summary.outputs.passed }}</td>
-                  <td style="color:#e74c3c; font-weight: bold; border: 1px solid #ddd;">${{ steps.test-summary.outputs.failed }}</td>
-                  <td style="color:#f39c12; font-weight: bold; border: 1px solid #ddd;">${{ steps.test-summary.outputs.skipped }}</td>
-                  <td style="font-weight: bold; border: 1px solid #ddd;">${{ steps.test-summary.outputs.duration }}s</td>
-                </tr>
-              </table>
-              
-              <h3 style="margin-top:30px;">📌 Metadata</h3>
-              <table border="1" cellspacing="0" cellpadding="10" class="metadata-table" style="border-collapse: collapse; width: 100%; max-width: 700px; border-radius: 8px; overflow: hidden; border: 2px solid #ddd;">
-                <tr style="background:#f8f9fa;">
-                  <td style="border: 1px solid #ddd; width: 180px; font-weight: bold;">Repository</td>
-                  <td style="border: 1px solid #ddd; background: white;">${{ github.repository }}</td>
-                </tr>
-                <tr style="background:#f8f9fa;">
-                  <td style="border: 1px solid #ddd; font-weight: bold;">Triggered by</td>
-                  <td style="border: 1px solid #ddd; background: white;">${{ github.event_name }}</td>
-                </tr>
-                <tr style="background:#f8f9fa;">
-                  <td style="border: 1px solid #ddd; font-weight: bold;">Branch</td>
-                  <td style="border: 1px solid #ddd; background: white;">${{ github.ref_name }}</td>
-                </tr>
-                <tr style="background:#f8f9fa;">
-                  <td style="border: 1px solid #ddd; font-weight: bold;">Run Date</td>
-                  <td style="border: 1px solid #ddd; background: white;">$current_time</td>
-                </tr>
-          EOF
-          
-          # Add repository_dispatch specific fields
-          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            cat >> email_body.html << EOF
-                <tr style="background:#e3f2fd;">
-                  <td style="border: 1px solid #ddd; font-weight: bold;">Web App Commit</td>
-                  <td style="border: 1px solid #ddd; background: white;"><code style="background:#f5f5f5; padding:2px 4px; border-radius:3px;">$sha</code></td>
-                </tr>
-                <tr style="background:#e3f2fd;">
-                  <td style="border: 1px solid #ddd; font-weight: bold;">Author</td>
-                  <td style="border: 1px solid #ddd; background: white;">$commit_author</td>
-                </tr>
-                <tr style="background:#e3f2fd;">
-                  <td style="border: 1px solid #ddd; font-weight: bold;">Commit ID</td>
-                  <td style="border: 1px solid #ddd; background: white;"><code style="background:#f5f5f5; padding:2px 4px; border-radius:3px;">$commit_id</code></td>
-                </tr>
-                <tr style="background:#e3f2fd;">
-                  <td style="border: 1px solid #ddd; font-weight: bold;">Web App Repository</td>
-                  <td style="border: 1px solid #ddd; background: white;">$repository</td>
-                </tr>
-                <tr style="background:#e3f2fd;">
-                  <td style="border: 1px solid #ddd; font-weight: bold;">Source Branch</td>
-                  <td style="border: 1px solid #ddd; background: white;">$ref</td>
-                </tr>
-          EOF
-          fi
-          
-          # Add workflow_dispatch test pattern if provided
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.test_pattern }}" ]; then
-            cat >> email_body.html << EOF
-                <tr style="background:#fff3cd;">
-                  <td style="border: 1px solid #ddd; font-weight: bold;">Test Pattern</td>
-                  <td style="border: 1px solid #ddd; background: white;"><code style="background:#f5f5f5; padding:2px 4px; border-radius:3px;">${{ github.event.inputs.test_pattern }}</code></td>
-                </tr>
-          EOF
-          fi
-          
-          cat >> email_body.html << EOF
-                <tr style="background:#f8f9fa;">
-                  <td style="border: 1px solid #ddd; font-weight: bold;">Workflow Run</td>
-                  <td style="border: 1px solid #ddd; background: white;">${{ github.run_id }}</td>
+                <tr>
+                  <td style="color:#28a745; font-weight: bold;">$passed_count</td>
+                  <td style="color:#e74c3c; font-weight: bold;">$failed_count</td>
+                  <td style="color:#f39c12; font-weight: bold;">$skipped_count</td>
+                  <td style="font-weight: bold;">${duration}s</td>
                 </tr>
               </table>
           EOF
-          
-          # Add failed test details if there are failures
-          if [ "$failed_count" -gt 0 ]; then
-            cat >> email_body.html << EOF
-              <h3 style="margin-top:30px; color:#e74c3c;">🔍 Need More Details?</h3>
-              <p style="background:#f8f9fa; padding:15px; border-radius:5px; border-left:4px solid #e74c3c;">
-                For detailed failure information, logs, and screenshots, please check the full workflow run report using the link below.
-              </p>
-          EOF
-          fi
-          
-          cat >> email_body.html << EOF
-              <div style="margin-top:30px; padding:20px; background:#f8f9fa; border-radius:8px; text-align:center;">
-                <p style="margin:0; font-size:16px;">
-                  🔗 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 
-                        style="color:#2E86C1; text-decoration:none; font-weight:bold; padding:10px 20px; background:white; border-radius:5px; display:inline-block; border:2px solid #2E86C1;">
-                    View Detailed Test Report →
-                  </a>
-                </p>
-              </div>
 
-              <hr style="margin-top:40px; border:none; border-top:1px solid #ddd;" />
-              <p style="font-size:12px; color:#999; text-align:center; margin-bottom:0;">
-                This is an automated email from GitHub Actions - Playwright CI<br>
-                Generated on $current_time
-              </p>
-            </body>
-          </html>
-          EOF
-          
-          # Read the generated content for the email action
           email_content=$(cat email_body.html)
-          echo "email_content<<EOF" >> $GITHUB_OUTPUT
-          echo "$email_content" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "email_content<<EOF"
+            echo "$email_content"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-
-          
       - name: Send email notification
         if: always()
         uses: dawidd6/action-send-mail@v3
@@ -337,7 +195,7 @@ jobs:
           secure: true
           username: ${{ secrets.EMAIL_USERNAME }}
           password: ${{ secrets.EMAIL_PASSWORD }}
-          subject: 🔥PLAYWRIGHT TEST RESULTS
+          subject: ${{ steps.generate-email.outputs.email_subject }}
           html_body: ${{ steps.generate-email.outputs.email_content }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Playwright Tests <${{ secrets.EMAIL_USERNAME }}>
