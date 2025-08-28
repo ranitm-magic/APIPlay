@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       test_pattern:
-        description: 'Custom test file pattern (e.g., src/tests/*.test.ts)'
+        description: 'Will RUN ALL THE TESTS IN THIS '
         required: false
         type: string
 
@@ -51,9 +51,9 @@ jobs:
         run: |
           set +e
           if [ -n "${{ github.event.inputs.test_pattern }}" ]; then
-            npx playwright test "${{ github.event.inputs.test_pattern }}" --reporter=html,json=results.json
+            npx playwright test "${{ github.event.inputs.test_pattern }}" --reporter=html,json
           else
-            npx playwright test --reporter=html,json=results.json
+            npx playwright test --reporter=html,json
           fi
           exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
@@ -62,25 +62,28 @@ jobs:
       - name: Parse test results
         id: test-summary
         run: |
-          if [ -f "results.json" ]; then
-            echo "=== ANALYZING RESULTS.JSON ==="
+          if [ -f "test-results.json" ]; then
+            echo "=== ANALYZING test-results.json ==="
             
-            passed=$(jq -r '.stats.expected // 0' results.json)
-            failed=$(jq -r '.stats.unexpected // 0' results.json)
-            skipped=$(jq -r '.stats.skipped // 0' results.json)
-            duration=$(jq -r '(.stats.duration // 0) / 1000' results.json)
+            passed=$(jq -r '.stats.expected // 0' test-results.json)
+            failed=$(jq -r '.stats.unexpected // 0' test-results.json)
+            skipped=$(jq -r '.stats.skipped // 0' test-results.json)
+            flaky=$(jq -r '.stats.flaky // 0' test-results.json)
+            duration=$(jq -r '(.stats.duration // 0) / 1000' test-results.json)
 
-            echo "Final counts: passed=$passed, failed=$failed, skipped=$skipped, duration=${duration}s"
+            echo "Final counts: passed=$passed, failed=$failed, skipped=$skipped, flaky=$flaky, duration=${duration}s"
             echo "passed=${passed}" >> $GITHUB_OUTPUT
             echo "failed=${failed}" >> $GITHUB_OUTPUT
             echo "skipped=${skipped}" >> $GITHUB_OUTPUT
+            echo "flaky=${flaky}" >> $GITHUB_OUTPUT
             echo "duration=${duration}" >> $GITHUB_OUTPUT
             echo "results_available=true" >> $GITHUB_OUTPUT
           else
-            echo "results.json not found, setting default values"
+            echo "test-results.json not found, setting default values"
             echo "passed=0" >> $GITHUB_OUTPUT
             echo "failed=0" >> $GITHUB_OUTPUT
             echo "skipped=0" >> $GITHUB_OUTPUT
+            echo "flaky=0" >> $GITHUB_OUTPUT
             echo "duration=0" >> $GITHUB_OUTPUT
             echo "results_available=false" >> $GITHUB_OUTPUT
           fi
@@ -92,8 +95,8 @@ jobs:
           name: playwright-report
           path: |
             playwright-report/
-            results.json
-          retention-days: 30
+            test-results.json
+          retention-days: 10
 
       - name: Set status color
         id: status-color
@@ -130,17 +133,19 @@ jobs:
               </p>
 
               <h3>Test Summary</h3>
-              <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 60%; max-width: 400px; text-align:center;">
+              <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 70%; max-width: 500px; text-align:center;">
                 <tr style="background:#f2f2f2;">
                   <th>Passed ✅</th>
                   <th>Failed ❌</th>
                   <th>Skipped ⚡</th>
+                  <th>Flaky 🔁</th>
                   <th>Duration ⏱</th>
                 </tr>
                 <tr>
                   <td style="color:#28a745;">${{ steps.test-summary.outputs.passed }}</td>
                   <td style="color:#e74c3c;">${{ steps.test-summary.outputs.failed }}</td>
                   <td style="color:#f39c12;">${{ steps.test-summary.outputs.skipped }}</td>
+                  <td style="color:#8e44ad;">${{ steps.test-summary.outputs.flaky }}</td>
                   <td>${{ steps.test-summary.outputs.duration }}s</td>
                 </tr>
               </table>
