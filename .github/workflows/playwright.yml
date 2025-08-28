@@ -255,3 +255,52 @@ jobs:
           html_body: ${{ steps.generate-email.outputs.email_content }}
           to: ${{ secrets.NOTIFICATION_EMAIL }}
           from: Playwright Tests <${{ secrets.EMAIL_USERNAME }}>
+
+      - name: Clean up old workflow runs
+        if: always()
+        run: |
+          echo "🧹 Starting workflow cleanup..."
+          
+          # Set the maximum number of runs to keep
+          MAX_RUNS=30
+          
+          # Get workflow runs for this workflow (sorted by created date, newest first)
+          WORKFLOW_ID=$(gh api repos/${{ github.repository }}/actions/workflows \
+            --jq '.workflows[] | select(.name == "Playwright Tests") | .id')
+          
+          echo "Found workflow ID: $WORKFLOW_ID"
+          
+          # Get all runs for this workflow
+          RUNS=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs \
+            --paginate --jq '.workflow_runs[].id' | head -100)
+          
+          # Convert to array and count
+          RUNS_ARRAY=($RUNS)
+          TOTAL_RUNS=${#RUNS_ARRAY[@]}
+          
+          echo "Total workflow runs found: $TOTAL_RUNS"
+          echo "Maximum runs to keep: $MAX_RUNS"
+          
+          if [ $TOTAL_RUNS -gt $MAX_RUNS ]; then
+            RUNS_TO_DELETE=$((TOTAL_RUNS - MAX_RUNS))
+            echo "Will delete $RUNS_TO_DELETE old workflow runs..."
+            
+            # Delete old runs (skip first MAX_RUNS, delete the rest)
+            for (( i=$MAX_RUNS; i<$TOTAL_RUNS; i++ )); do
+              RUN_ID=${RUNS_ARRAY[$i]}
+              echo "Deleting workflow run: $RUN_ID"
+              
+              # Delete the workflow run
+              gh api repos/${{ github.repository }}/actions/runs/$RUN_ID \
+                -X DELETE || echo "Failed to delete run $RUN_ID (might already be deleted or in progress)"
+              
+              # Small delay to avoid rate limiting
+              sleep 1
+            done
+            
+            echo "✅ Cleanup completed! Deleted $RUNS_TO_DELETE old workflow runs."
+          else
+            echo "✅ No cleanup needed. Current runs ($TOTAL_RUNS) are within limit ($MAX_RUNS)."
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
