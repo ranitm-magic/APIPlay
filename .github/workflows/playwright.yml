@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       test_pattern:
-        description: 'Will RUN ALL THE TESTS IN THIS '
+        description: 'Will run all the tests in this '
         required: false
         type: string
 
@@ -16,48 +16,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+
+      # Use the official Playwright action for a cleaner setup
+      - name: Install Playwright and browsers
+        uses: microsoft/playwright-github-action@v1.1.0
         with:
           node-version: '20'
           cache: 'npm'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Cache Playwright browsers
-        id: cache-playwright
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-playwright-
-
-      - name: Install Playwright browsers
-        run: |
-          if [ "${{ steps.cache-playwright.outputs.cache-hit }}" = "true" ]; then
-            echo "Browsers found in cache, verifying installation..."
-            npx playwright install --dry-run > /dev/null 2>&1 || npx playwright install chromium
-          else
-            echo "Installing Playwright browsers and dependencies..."
-            npx playwright install --with-deps chromium
-          fi
+          browsers: 'chromium'
 
       - name: Run Playwright tests
         id: playwright-tests
-        continue-on-error: true
+        # `continue-on-error` is more reliable on the job level
         run: |
-          set +e
           if [ -n "${{ github.event.inputs.test_pattern }}" ]; then
             npx playwright test "${{ github.event.inputs.test_pattern }}"
           else
             npx playwright test
           fi
-          exit_code=$?
-          echo "exit_code=$exit_code" >> $GITHUB_OUTPUT
-          exit 0
+        # The exit code can be accessed via `outcome`
+        continue-on-error: true
 
       - name: Parse test results
         id: test-summary
@@ -89,14 +67,11 @@ jobs:
           fi
 
       - name: Upload Playwright Report
-        id: upload-report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report
-          path: |
-            playwright-report/
-            test-results.json
+          name: playwright-report-${{ github.run_id }} # Unique name for easier management
+          path: playwright-report/
           retention-days: 10
 
       - name: Set status color
@@ -114,16 +89,18 @@ jobs:
         if: always()
         id: generate-email
         run: |
-          echo '${{ toJSON(github.event.client_payload) }}' > client_payload.json
-          
-          sha=$(jq -r '.sha // "N/A"' client_payload.json)
-          commit_author=$(jq -r '.commit_author // "N/A"' client_payload.json)
-          commit_id=$(jq -r '.commit_id // "N/A"' client_payload.json)
-          repository=$(jq -r '.repository // "N/A"' client_payload.json)
-          ref=$(jq -r '.ref // "N/A"' client_payload.json)
-          
-          # Generate the artifact download URL
-          artifact_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.upload-report.outputs.artifact-id }}"
+          # Use the GITHUB_JOB_SUMMARY for a clean report on GitHub
+          echo '# 🎭 Playwright Test Results' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo 'Test Summary:' >> $GITHUB_STEP_SUMMARY
+          echo 'Passed: ${{ steps.test-summary.outputs.passed }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Failed: ${{ steps.test-summary.outputs.failed }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Skipped: ${{ steps.test-summary.outputs.skipped }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Flaky: ${{ steps.test-summary.outputs.flaky }}' >> $GITHUB_STEP_SUMMARY
+          echo 'Duration: ${{ steps.test-summary.outputs.duration }}s' >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Download Report" >> $GITHUB_STEP_SUMMARY
+          echo "📄 [Download Full Playwright Report (HTML)](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts/playwright-report-${GITHUB_RUN_ID})" >> $GITHUB_STEP_SUMMARY
 
           cat > email_body.html << EOF
           <html>
@@ -166,28 +143,7 @@ jobs:
           EOF
           
           if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
-            cat >> email_body.html << EOF
-                <tr>
-                  <td><strong>Web App Commit</strong></td>
-                  <td><code>$sha</code></td>
-                </tr>
-                <tr>
-                  <td><strong>Author</strong></td>
-                  <td>$commit_author</td>
-                </tr>
-                <tr>
-                  <td><strong>Commit ID</strong></td>
-                  <td><code>$commit_id</code></td>
-                </tr>
-                <tr>
-                  <td><strong>Web App Repository</strong></td>
-                  <td>$repository</td>
-                </tr>
-                <tr>
-                  <td><strong>Branch</strong></td>
-                  <td>$ref</td>
-                </tr>
-          EOF
+            jq -r '"<tr><td><strong>Web App Commit</strong></td><td><code>\(.sha // "N/A")</code></td></tr><tr><td><strong>Author</strong></td><td>\(.commit_author // "N/A")</td></tr><tr><td><strong>Commit ID</strong></td><td><code>\(.commit_id // "N/A")</code></td></tr><tr><td><strong>Web App Repository</strong></td><td>\(.repository // "N/A")</td></tr><tr><td><strong>Branch</strong></td><td>\(.ref // "N/A")</td></tr>' <(echo '${{ toJSON(github.event.client_payload) }}') >> email_body.html
           fi
           
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ github.event.inputs.test_pattern }}" ]; then
@@ -196,7 +152,7 @@ jobs:
                   <td><strong>Test Pattern</strong></td>
                   <td><code>${{ github.event.inputs.test_pattern }}</code></td>
                 </tr>
-          EOF
+            EOF
           fi
           
           cat >> email_body.html << EOF
@@ -210,25 +166,10 @@ jobs:
               <div style="margin-top:15px;">
                 <p style="margin-bottom:10px;">
                   🔗 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 
-                        style="color:#2E86C1; text-decoration:none; font-weight:bold;">
+                      style="color:#2E86C1; text-decoration:none; font-weight:bold;">
                     View Workflow Logs
                   </a>
                 </p>
-                
-                <p style="margin-bottom:10px;">
-                  📄 <a href="$artifact_url"
-                        style="color:#2E86C1; text-decoration:none; font-weight:bold;">
-                    Download Playwright Report (Artifact ID: ${{ steps.upload-report.outputs.artifact-id }})
-                  </a>
-                </p>
-              </div>
-
-              <div style="text-align:center; margin-top:25px;">
-                <a href="$artifact_url"
-                   style="display:inline-block; padding:12px 25px; background:#2E86C1; color:#fff; 
-                          text-decoration:none; border-radius:25px; font-weight:bold; font-size:14px;">
-                  📥 Download Full Test Report
-                </a>
               </div>
 
               <hr style="margin-top:30px; border:none; border-top:1px solid #ddd;" />
@@ -261,18 +202,15 @@ jobs:
         run: |
           echo "🧹 Starting workflow cleanup..."
           
-          # Set the maximum number of runs to keep
           MAX_RUNS=30
           
-          # Check if we have a personal access token for cleanup
           if [ -z "${{ secrets.CLEANUP_TOKEN }}" ]; then
-            echo "⚠️  CLEANUP_TOKEN secret not found. Skipping workflow cleanup."
-            echo "ℹ️  To enable automatic cleanup, create a GitHub Personal Access Token with 'actions:write' permission"
-            echo "ℹ️  and add it as a repository secret named 'CLEANUP_TOKEN'"
+            echo "⚠️ CLEANUP_TOKEN secret not found. Skipping workflow cleanup."
+            echo "ℹ️ To enable automatic cleanup, create a GitHub Personal Access Token with 'actions:write' permission"
+            echo "ℹ️ and add it as a repository secret named 'CLEANUP_TOKEN'"
             exit 0
           fi
           
-          # Get workflow runs for this workflow (sorted by created date, newest first)
           WORKFLOW_ID=$(gh api repos/${{ github.repository }}/actions/workflows \
             --jq '.workflows[] | select(.name == "Playwright Tests") | .id')
           
@@ -282,7 +220,6 @@ jobs:
           RUNS=$(gh api repos/${{ github.repository }}/actions/workflows/$WORKFLOW_ID/runs \
             --paginate --jq '.workflow_runs[].id' | head -100)
           
-          # Convert to array and count
           RUNS_ARRAY=($RUNS)
           TOTAL_RUNS=${#RUNS_ARRAY[@]}
           
@@ -293,16 +230,11 @@ jobs:
             RUNS_TO_DELETE=$((TOTAL_RUNS - MAX_RUNS))
             echo "Will delete $RUNS_TO_DELETE old workflow runs..."
             
-            # Delete old runs (skip first MAX_RUNS, delete the rest)
             for (( i=$MAX_RUNS; i<$TOTAL_RUNS; i++ )); do
               RUN_ID=${RUNS_ARRAY[$i]}
               echo "Deleting workflow run: $RUN_ID"
-              
-              # Delete the workflow run using the cleanup token
               gh api repos/${{ github.repository }}/actions/runs/$RUN_ID \
                 -X DELETE || echo "Failed to delete run $RUN_ID (might already be deleted or in progress)"
-              
-              # Small delay to avoid rate limiting
               sleep 1
             done
             
@@ -311,4 +243,4 @@ jobs:
             echo "✅ No cleanup needed. Current runs ($TOTAL_RUNS) are within limit ($MAX_RUNS)."
           fi
         env:
-          GH_TOKEN: ${{ secrets.CLEANUP_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.CLEANUP_TOKEN }}
