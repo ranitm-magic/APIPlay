@@ -25,7 +25,7 @@
       - generic [ref=e34]:
         - generic [ref=e36]:
           - img [ref=e40]
-          - combobox "Search" [active] [ref=e43]
+          - combobox "Search" [ref=e43]
           - generic [ref=e46]:
             - button "Search by voice" [ref=e47] [cursor=pointer]:
               - img [ref=e48] [cursor=pointer]
@@ -34,51 +34,53 @@
         - generic [ref=e54]:
           - button "Google Search" [ref=e55] [cursor=pointer]
           - button "I'm Feeling Lucky" [ref=e56] [cursor=pointer]
-    - generic [ref=e59]:
-      - text: "Google offered in:"
-      - link "हिन्दी" [ref=e60] [cursor=pointer]:
-        - /url: https://www.google.com/setprefs?sig=0_kKez_1BUfvRVeGABXQT843pLq0M%3D&hl=hi&source=homepage&sa=X&ved=0ahUKEwj9i-qnv6qPAxWSLLkGHd-3JqsQ2ZgBCBc
-      - link "বাংলা" [ref=e61] [cursor=pointer]:
-        - /url: https://www.google.com/setprefs?sig=0_kKez_1BUfvRVeGABXQT843pLq0M%3D&hl=bn&source=homepage&sa=X&ved=0ahUKEwj9i-qnv6qPAxWSLLkGHd-3JqsQ2ZgBCBg
-      - link "తెలుగు" [ref=e62] [cursor=pointer]:
-        - /url: https://www.google.com/setprefs?sig=0_kKez_1BUfvRVeGABXQT843pLq0M%3D&hl=te&source=homepage&sa=X&ved=0ahUKEwj9i-qnv6qPAxWSLLkGHd-3JqsQ2ZgBCBk
-      - link "मराठी" [ref=e63] [cursor=pointer]:
-        - /url: https://www.google.com/setprefs?sig=0_kKez_1BUfvRVeGABXQT843pLq0M%3D&hl=mr&source=homepage&sa=X&ved=0ahUKEwj9i-qnv6qPAxWSLLkGHd-3JqsQ2ZgBCBo
-      - link "தமிழ்" [ref=e64] [cursor=pointer]:
-        - /url: https://www.google.com/setprefs?sig=0_kKez_1BUfvRVeGABXQT843pLq0M%3D&hl=ta&source=homepage&sa=X&ved=0ahUKEwj9i-qnv6qPAxWSLLkGHd-3JqsQ2ZgBCBs
-      - link "ગુજરાતી" [ref=e65] [cursor=pointer]:
-        - /url: https://www.google.com/setprefs?sig=0_kKez_1BUfvRVeGABXQT843pLq0M%3D&hl=gu&source=homepage&sa=X&ved=0ahUKEwj9i-qnv6qPAxWSLLkGHd-3JqsQ2ZgBCBw
-      - link "ಕನ್ನಡ" [ref=e66] [cursor=pointer]:
-        - /url: https://www.google.com/setprefs?sig=0_kKez_1BUfvRVeGABXQT843pLq0M%3D&hl=kn&source=homepage&sa=X&ved=0ahUKEwj9i-qnv6qPAxWSLLkGHd-3JqsQ2ZgBCB0
-      - link "മലയാളം" [ref=e67] [cursor=pointer]:
-        - /url: https://www.google.com/setprefs?sig=0_kKez_1BUfvRVeGABXQT843pLq0M%3D&hl=ml&source=homepage&sa=X&ved=0ahUKEwj9i-qnv6qPAxWSLLkGHd-3JqsQ2ZgBCB4
-      - link "ਪੰਜਾਬੀ" [ref=e68] [cursor=pointer]:
-        - /url: https://www.google.com/setprefs?sig=0_kKez_1BUfvRVeGABXQT843pLq0M%3D&hl=pa&source=homepage&sa=X&ved=0ahUKEwj9i-qnv6qPAxWSLLkGHd-3JqsQ2ZgBCB8
-    - contentinfo [ref=e70]:
-      - generic [ref=e71]: India
-      - generic [ref=e72]:
-        - generic [ref=e73]:
-          - link "Advertising" [ref=e74] [cursor=pointer]:
+    - generic [ref=e57]:
+      - link "Introducing Google Pixel 10. Ask more of your phone" [ref=e66] [cursor=pointer]
+      - generic [ref=e68]:
+        - text: "Google offered in:"
+        - link "हिन्दी" [ref=e69] [cursor=pointer]:
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=hi&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBc
+        - link "বাংলা" [ref=e70] [cursor=pointer]:
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=bn&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBg
+        - link "తెలుగు" [ref=e71] [cursor=pointer]:
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=te&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBk
+        - link "मराठी" [ref=e72] [cursor=pointer]:
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=mr&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBo
+        - link "தமிழ்" [ref=e73] [cursor=pointer]:
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=ta&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBs
+        - link "ગુજરાતી" [ref=e74] [cursor=pointer]:
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=gu&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBw
+        - link "ಕನ್ನಡ" [ref=e75] [cursor=pointer]:
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=kn&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCB0
+        - link "മലയാളം" [ref=e76] [cursor=pointer]:
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=ml&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCB4
+        - link "ਪੰਜਾਬੀ" [ref=e77] [cursor=pointer]:
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=pa&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCB8
+    - contentinfo [ref=e79]:
+      - generic [ref=e80]: India
+      - generic [ref=e81]:
+        - generic [ref=e82]:
+          - link "Advertising" [ref=e83] [cursor=pointer]:
             - /url: https://www.google.com/intl/en_in/ads/?subid=ww-ww-et-g-awa-a-g_hpafoot1_1!o2&utm_source=google.com&utm_medium=referral&utm_campaign=google_hpafooter&fg=1
-          - link "Business" [ref=e75] [cursor=pointer]:
+          - link "Business" [ref=e84] [cursor=pointer]:
             - /url: https://www.google.com/services/?subid=ww-ww-et-g-awa-a-g_hpbfoot1_1!o2&utm_source=google.com&utm_medium=referral&utm_campaign=google_hpbfooter&fg=1
-          - link "How Search works" [ref=e76] [cursor=pointer]:
+          - link "How Search works" [ref=e85] [cursor=pointer]:
             - /url: https://google.com/search/howsearchworks/?fg=1
-        - generic [ref=e77]:
-          - link "Privacy" [ref=e78] [cursor=pointer]:
+        - generic [ref=e86]:
+          - link "Privacy" [ref=e87] [cursor=pointer]:
             - /url: https://policies.google.com/privacy?hl=en-IN&fg=1
-          - link "Terms" [ref=e79] [cursor=pointer]:
+          - link "Terms" [ref=e88] [cursor=pointer]:
             - /url: https://policies.google.com/terms?hl=en-IN&fg=1
-          - button "Settings" [ref=e83] [cursor=pointer]:
-            - generic [ref=e84] [cursor=pointer]: Settings
+          - button "Settings" [ref=e92] [cursor=pointer]:
+            - generic [ref=e93] [cursor=pointer]: Settings
   - generic:
     - dialog "Sign in to Google":
-      - generic [ref=e93]:
-        - generic [ref=e94]: Sign in to Google
-        - generic [ref=e95]: Get the most from your Google account
-        - generic [ref=e96]:
-          - button "Stay signed out" [ref=e98] [cursor=pointer]:
-            - generic [ref=e102] [cursor=pointer]: Stay signed out
-          - button "Sign in" [ref=e104] [cursor=pointer]:
-            - generic [ref=e108] [cursor=pointer]: Sign in
+      - generic [ref=e102]:
+        - generic [ref=e103]: Sign in to Google
+        - generic [ref=e104]: Get the most from your Google account
+        - generic [ref=e105]:
+          - button "Stay signed out" [ref=e107] [cursor=pointer]:
+            - generic [ref=e111] [cursor=pointer]: Stay signed out
+          - button "Sign in" [ref=e113] [cursor=pointer]:
+            - generic [ref=e117] [cursor=pointer]: Sign in
 ```

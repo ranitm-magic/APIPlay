@@ -51,9 +51,9 @@ jobs:
         run: |
           set +e
           if [ -n "${{ github.event.inputs.test_pattern }}" ]; then
-            npx playwright test "${{ github.event.inputs.test_pattern }}" --reporter=html,json
+            npx playwright test "${{ github.event.inputs.test_pattern }}"
           else
-            npx playwright test --reporter=html,json
+            npx playwright test
           fi
           exit_code=$?
           echo "exit_code=$exit_code" >> $GITHUB_OUTPUT

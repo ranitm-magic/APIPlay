@@ -1,0 +1,996 @@
+{
+  "config": {
+    "configFile": "D:\\HELLO\\playwright.config.ts",
+    "rootDir": "D:/HELLO/src/tests",
+    "forbidOnly": false,
+    "fullyParallel": true,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 4
+    },
+    "preserveOutput": "always",
+    "reporter": [
+      [
+        "html",
+        null
+      ],
+      [
+        "json",
+        {
+          "outputFile": "test-results.json"
+        }
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "quiet": false,
+    "projects": [
+      {
+        "outputDir": "D:/HELLO/test-results",
+        "repeatEach": 1,
+        "retries": 0,
+        "metadata": {
+          "actualWorkers": 4
+        },
+        "id": "",
+        "name": "",
+        "testDir": "D:/HELLO/src/tests",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "shard": null,
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.55.0",
+    "workers": 4,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "demoUI.spec.ts",
+      "file": "demoUI.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Google Search UI Tests",
+          "file": "demoUI.spec.ts",
+          "line": 3,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should load Google homepage",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 11087,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('textarea[name=\"q1\"]')\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('textarea[name=\"q1\"]')\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('textarea[name=\"q1\"]')\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('textarea[name=\"q1\"]')\u001b[22m\n\n    at D:\\HELLO\\src\\tests\\demoUI.spec.ts:24:31",
+                        "location": {
+                          "file": "D:\\HELLO\\src\\tests\\demoUI.spec.ts",
+                          "column": 31,
+                          "line": 24
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 22 |\u001b[39m     \u001b[90m// Verify search input is visible\u001b[39m\n \u001b[90m 23 |\u001b[39m     \u001b[36mconst\u001b[39m searchInput \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m'textarea[name=\"q1\"]'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 24 |\u001b[39m     \u001b[36mawait\u001b[39m expect(searchInput)\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                               \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 25 |\u001b[39m\n \u001b[90m 26 |\u001b[39m\n \u001b[90m 27 |\u001b[39m     \u001b[36mawait\u001b[39m searchInput\u001b[33m.\u001b[39mfill(\u001b[32m'Playwright Testing'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "D:\\HELLO\\src\\tests\\demoUI.spec.ts",
+                            "column": 31,
+                            "line": 24
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoBeVisible\u001b[2m()\u001b[22m failed\n\nLocator:  locator('textarea[name=\"q1\"]')\nExpected: visible\nReceived: <element(s) not found>\nTimeout:  5000ms\n\nCall log:\n\u001b[2m  - Expect \"toBeVisible\" with timeout 5000ms\u001b[22m\n\u001b[2m  - waiting for locator('textarea[name=\"q1\"]')\u001b[22m\n\n\n\u001b[0m \u001b[90m 22 |\u001b[39m     \u001b[90m// Verify search input is visible\u001b[39m\n \u001b[90m 23 |\u001b[39m     \u001b[36mconst\u001b[39m searchInput \u001b[33m=\u001b[39m page\u001b[33m.\u001b[39mlocator(\u001b[32m'textarea[name=\"q1\"]'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 24 |\u001b[39m     \u001b[36mawait\u001b[39m expect(searchInput)\u001b[33m.\u001b[39mtoBeVisible()\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                               \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 25 |\u001b[39m\n \u001b[90m 26 |\u001b[39m\n \u001b[90m 27 |\u001b[39m     \u001b[36mawait\u001b[39m searchInput\u001b[33m.\u001b[39mfill(\u001b[32m'Playwright Testing'\u001b[39m)\u001b[33m;\u001b[39m\u001b[0m\n\u001b[2m    at D:\\HELLO\\src\\tests\\demoUI.spec.ts:24:31\u001b[22m"
+                        }
+                      ],
+                      "stdout": [
+                        {
+                          "text": "Cookie consent not found or already handled\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:05.848Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "D:\\HELLO\\test-results\\demoUI-Google-Search-UI-Tests-should-load-Google-homepage\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "D:\\HELLO\\src\\tests\\demoUI.spec.ts",
+                        "column": 31,
+                        "line": 24
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "02f8538266677db07e20-16b93da37fab0eedba8e",
+              "file": "demoUI.spec.ts",
+              "line": 18,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "gorest-api.individual.test.ts",
+      "file": "gorest-api.individual.test.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "GoRest API Independent Tests",
+          "file": "gorest-api.individual.test.ts",
+          "line": 21,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should create a new user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 537,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[Create Test] Successfully created user with ID: 8091900\n"
+                        },
+                        {
+                          "text": "[Create Test] Cleaned up - deleted user with ID: 8091900\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:05.918Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dcfd79285af820ef35c1-364a35560cadf55c8b22",
+              "file": "gorest-api.individual.test.ts",
+              "line": 22,
+              "column": 9
+            },
+            {
+              "title": "should get user by ID",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "passed",
+                      "duration": 557,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[Helper] Created test user with ID: 8091899\n"
+                        },
+                        {
+                          "text": "[Get Test] Successfully retrieved user with ID: 8091899\n"
+                        },
+                        {
+                          "text": "[Get Test] Cleaned up - deleted user with ID: 8091899\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:05.964Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dcfd79285af820ef35c1-49868812b4dffa687412",
+              "file": "gorest-api.individual.test.ts",
+              "line": 45,
+              "column": 9
+            },
+            {
+              "title": "should update user details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 524,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[Helper] Created test user with ID: 8091901\n"
+                        },
+                        {
+                          "text": "[Update Test] Successfully updated user with ID: 8091901\n"
+                        },
+                        {
+                          "text": "[Update Test] New name: Updated Test User, New status: inactive\n"
+                        },
+                        {
+                          "text": "[Update Test] Cleaned up - deleted user with ID: 8091901\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:06.020Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dcfd79285af820ef35c1-af4361f288a02d725886",
+              "file": "gorest-api.individual.test.ts",
+              "line": 61,
+              "column": 9
+            },
+            {
+              "title": "should delete a user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 421,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[Helper] Created test user with ID: 8091902\n"
+                        },
+                        {
+                          "text": "[Delete Test] Attempting to delete user with ID: 8091902\n"
+                        },
+                        {
+                          "text": "[Delete Test] Successfully deleted user\n"
+                        },
+                        {
+                          "text": "[Delete Test] Verified user 8091902 no longer exists in DB\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:06.537Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "dcfd79285af820ef35c1-682cad14c60f56442484",
+              "file": "gorest-api.individual.test.ts",
+              "line": 82,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "gorest-api.negative.test.ts",
+      "file": "gorest-api.negative.test.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "GoRest API Negative Test Scenarios",
+          "file": "gorest-api.negative.test.ts",
+          "line": 4,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should fail to create user with invalid email format",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "passed",
+                      "duration": 135,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "\n[Negative Test] Create user with invalid email failed as expected\n"
+                        },
+                        {
+                          "text": "Error Status: \u001b[33m422\u001b[39m\n"
+                        },
+                        {
+                          "text": "Error Details: [\n  {\n    \"field\": \"email\",\n    \"message\": \"is invalid\"\n  }\n]\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:06.631Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "17fc41568215779711a6-7e8353cb24b69172e6e6",
+              "file": "gorest-api.negative.test.ts",
+              "line": 5,
+              "column": 9
+            },
+            {
+              "title": "should fail to create user with missing required fields",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 125,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "\n[Negative Test] Create user with missing fields failed as expected\n"
+                        },
+                        {
+                          "text": "Error Status: \u001b[33m422\u001b[39m\n"
+                        },
+                        {
+                          "text": "Error Response: [\n  {\n    \"field\": \"email\",\n    \"message\": \"can't be blank\"\n  },\n  {\n    \"field\": \"gender\",\n    \"message\": \"can't be blank, can be male of female\"\n  },\n  {\n    \"field\": \"status\",\n    \"message\": \"can't be blank\"\n  }\n]\n"
+                        },
+                        {
+                          "text": "Missing Fields: email, gender, status\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:06.636Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "17fc41568215779711a6-52206458bf0aeb9d775d",
+              "file": "gorest-api.negative.test.ts",
+              "line": 29,
+              "column": 9
+            },
+            {
+              "title": "should fail to get user with non-existent ID",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 116,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "\n[Negative Test] Get non-existent user 99999999 failed as expected\n"
+                        },
+                        {
+                          "text": "Error Status: \u001b[33m404\u001b[39m\n"
+                        },
+                        {
+                          "text": "Status Text: Not Found\n"
+                        },
+                        {
+                          "text": "Error Response: {\n  \"message\": \"Resource not found\"\n}\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:07.088Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "17fc41568215779711a6-c4397450d0271abe3097",
+              "file": "gorest-api.negative.test.ts",
+              "line": 52,
+              "column": 9
+            },
+            {
+              "title": "should fail to update user with invalid gender",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "passed",
+                      "duration": 311,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[Negative Test] Created test user with ID: 8091903\n"
+                        },
+                        {
+                          "text": "\n[Negative Test] Update user with invalid gender failed as expected\n"
+                        },
+                        {
+                          "text": "Error Status: \u001b[33m422\u001b[39m\n"
+                        },
+                        {
+                          "text": "Error Details: [\n  {\n    \"field\": \"gender\",\n    \"message\": \"can't be blank, can be male of female\"\n  }\n]\n"
+                        },
+                        {
+                          "text": "Invalid Field: gender\n"
+                        },
+                        {
+                          "text": "Error Message: can't be blank, can be male of female\n"
+                        },
+                        {
+                          "text": "[Negative Test] Cleaned up - deleted user with ID: 8091903\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:07.104Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "17fc41568215779711a6-cec29624b401180e5b6b",
+              "file": "gorest-api.negative.test.ts",
+              "line": 73,
+              "column": 9
+            },
+            {
+              "title": "should fail to delete non-existent user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 113,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "\n[Negative Test] Delete non-existent user 99999999 failed as expected\n"
+                        },
+                        {
+                          "text": "Error Status: \u001b[33m404\u001b[39m\n"
+                        },
+                        {
+                          "text": "Status Text: Not Found\n"
+                        },
+                        {
+                          "text": "Error Response: {\n  \"message\": \"Resource not found\"\n}\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:07.255Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "17fc41568215779711a6-9fb5f93f8229a01130f9",
+              "file": "gorest-api.negative.test.ts",
+              "line": 108,
+              "column": 9
+            },
+            {
+              "title": "should fail to create user with duplicate email",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 377,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "[Negative Test] Created first user with ID: 8091904\n"
+                        },
+                        {
+                          "text": "\n[Negative Test] Create user with duplicate email failed as expected\n"
+                        },
+                        {
+                          "text": "Error Status: \u001b[33m422\u001b[39m\n"
+                        },
+                        {
+                          "text": "Error Details: [\n  {\n    \"field\": \"email\",\n    \"message\": \"has already been taken\"\n  }\n]\n"
+                        },
+                        {
+                          "text": "Duplicate Field: email\n"
+                        },
+                        {
+                          "text": "Error Message: has already been taken\n"
+                        },
+                        {
+                          "text": "[Negative Test] Cleaned up - deleted user with ID: 8091904\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:07.467Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "17fc41568215779711a6-e4b7f1eed7dd98d79d5e",
+              "file": "gorest-api.negative.test.ts",
+              "line": 134,
+              "column": 9
+            },
+            {
+              "title": "should fail to update non-existent user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 147,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "\n[Negative Test] Update non-existent user 99999999 failed as expected\n"
+                        },
+                        {
+                          "text": "Error Status: \u001b[33m404\u001b[39m\n"
+                        },
+                        {
+                          "text": "Status Text: Not Found\n"
+                        },
+                        {
+                          "text": "Error Response: {\n  \"message\": \"Resource not found\"\n}\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:07.536Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "17fc41568215779711a6-ff9b0925283184d22b09",
+              "file": "gorest-api.negative.test.ts",
+              "line": 178,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "gorest-api.posts.test.ts",
+      "file": "gorest-api.posts.test.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "GoRest API Nested Resource Tests",
+          "file": "gorest-api.posts.test.ts",
+          "line": 5,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should create a post for a user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 2,
+                      "status": "passed",
+                      "duration": 242,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Created user with ID 8091905 for post tests.\n"
+                        },
+                        {
+                          "text": "Created post with ID 236050 for user 8091905.\n"
+                        },
+                        {
+                          "text": "Cleaned up: Deleted user with ID 8091905.\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:07.548Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "13df41f524bbd3718808-890d766def03084ab66d",
+              "file": "gorest-api.posts.test.ts",
+              "line": 29,
+              "column": 9
+            },
+            {
+              "title": "should retrieve all posts for a user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 1,
+                      "status": "passed",
+                      "duration": 371,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Created user with ID 8091906 for post tests.\n"
+                        },
+                        {
+                          "text": "Retrieved 2 posts for user 8091906.\n"
+                        },
+                        {
+                          "text": "Cleaned up: Deleted user with ID 8091906.\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:07.726Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "13df41f524bbd3718808-54ec623f3b30b8fa87f7",
+              "file": "gorest-api.posts.test.ts",
+              "line": 44,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "gorest-api.users.test.ts",
+      "file": "gorest-api.users.test.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "GoRest API Sequential Tests",
+          "file": "gorest-api.users.test.ts",
+          "line": 5,
+          "column": 15,
+          "specs": [
+            {
+              "title": "should create a new user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 151,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Created user with ID: 8091907\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:07.880Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4de4fbd6539b09a9e4a7-e196683d14de6bafe4b2",
+              "file": "gorest-api.users.test.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should get created user by ID",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [
+                    {
+                      "type": "skip",
+                      "location": {
+                        "file": "D:\\HELLO\\src\\tests\\gorest-api.users.test.ts",
+                        "line": 30,
+                        "column": 10
+                      }
+                    }
+                  ],
+                  "expectedStatus": "skipped",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "skipped",
+                      "duration": 0,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:08.064Z",
+                      "annotations": [
+                        {
+                          "type": "skip",
+                          "location": {
+                            "file": "D:\\HELLO\\src\\tests\\gorest-api.users.test.ts",
+                            "line": 30,
+                            "column": 10
+                          }
+                        }
+                      ],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "skipped"
+                }
+              ],
+              "id": "4de4fbd6539b09a9e4a7-06497c151b32d960fbed",
+              "file": "gorest-api.users.test.ts",
+              "line": 30,
+              "column": 10
+            },
+            {
+              "title": "should update user details",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 132,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:08.065Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4de4fbd6539b09a9e4a7-546e8010f17803dbfe56",
+              "file": "gorest-api.users.test.ts",
+              "line": 38,
+              "column": 9
+            },
+            {
+              "title": "should delete the created user",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "",
+                  "projectName": "",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 3,
+                      "status": "passed",
+                      "duration": 294,
+                      "errors": [],
+                      "stdout": [
+                        {
+                          "text": "Deleted user with ID: 8091907\n"
+                        }
+                      ],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2025-08-28T06:33:08.225Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "4de4fbd6539b09a9e4a7-8b4585fe04e58435af06",
+              "file": "gorest-api.users.test.ts",
+              "line": 50,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2025-08-28T06:33:02.081Z",
+    "duration": 16175.936999999998,
+    "expected": 16,
+    "skipped": 1,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

@@ -3,7 +3,10 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   testDir: './src/tests',
   fullyParallel: true,
-  reporter: 'html',
+ reporter: [
+    ['html'],
+    ['json', { outputFile: 'test-results.json' }]
+  ],
   use: {
     trace: 'on-first-retry',
     browserName: 'chromium',

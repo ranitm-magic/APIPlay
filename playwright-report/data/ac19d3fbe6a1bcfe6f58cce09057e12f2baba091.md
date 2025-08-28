@@ -25,7 +25,7 @@
       - generic [ref=e34]:
         - generic [ref=e36]:
           - img [ref=e40]
-          - combobox "Search" [active] [ref=e43]
+          - combobox "Search" [ref=e43]
           - generic [ref=e46]:
             - button "Search by voice" [ref=e47] [cursor=pointer]:
               - img [ref=e48] [cursor=pointer]
@@ -39,23 +39,23 @@
       - generic [ref=e68]:
         - text: "Google offered in:"
         - link "हिन्दी" [ref=e69] [cursor=pointer]:
-          - /url: https://www.google.com/setprefs?sig=0_b9eilbumk_IcgXp296BVYnUaNeY%3D&hl=hi&source=homepage&sa=X&ved=0ahUKEwj-vseQ66yPAxXMrpUCHVm8O6cQ2ZgBCBc
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=hi&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBc
         - link "বাংলা" [ref=e70] [cursor=pointer]:
-          - /url: https://www.google.com/setprefs?sig=0_b9eilbumk_IcgXp296BVYnUaNeY%3D&hl=bn&source=homepage&sa=X&ved=0ahUKEwj-vseQ66yPAxXMrpUCHVm8O6cQ2ZgBCBg
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=bn&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBg
         - link "తెలుగు" [ref=e71] [cursor=pointer]:
-          - /url: https://www.google.com/setprefs?sig=0_b9eilbumk_IcgXp296BVYnUaNeY%3D&hl=te&source=homepage&sa=X&ved=0ahUKEwj-vseQ66yPAxXMrpUCHVm8O6cQ2ZgBCBk
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=te&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBk
         - link "मराठी" [ref=e72] [cursor=pointer]:
-          - /url: https://www.google.com/setprefs?sig=0_b9eilbumk_IcgXp296BVYnUaNeY%3D&hl=mr&source=homepage&sa=X&ved=0ahUKEwj-vseQ66yPAxXMrpUCHVm8O6cQ2ZgBCBo
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=mr&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBo
         - link "தமிழ்" [ref=e73] [cursor=pointer]:
-          - /url: https://www.google.com/setprefs?sig=0_b9eilbumk_IcgXp296BVYnUaNeY%3D&hl=ta&source=homepage&sa=X&ved=0ahUKEwj-vseQ66yPAxXMrpUCHVm8O6cQ2ZgBCBs
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=ta&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBs
         - link "ગુજરાતી" [ref=e74] [cursor=pointer]:
-          - /url: https://www.google.com/setprefs?sig=0_b9eilbumk_IcgXp296BVYnUaNeY%3D&hl=gu&source=homepage&sa=X&ved=0ahUKEwj-vseQ66yPAxXMrpUCHVm8O6cQ2ZgBCBw
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=gu&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCBw
         - link "ಕನ್ನಡ" [ref=e75] [cursor=pointer]:
-          - /url: https://www.google.com/setprefs?sig=0_b9eilbumk_IcgXp296BVYnUaNeY%3D&hl=kn&source=homepage&sa=X&ved=0ahUKEwj-vseQ66yPAxXMrpUCHVm8O6cQ2ZgBCB0
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=kn&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCB0
         - link "മലയാളം" [ref=e76] [cursor=pointer]:
-          - /url: https://www.google.com/setprefs?sig=0_b9eilbumk_IcgXp296BVYnUaNeY%3D&hl=ml&source=homepage&sa=X&ved=0ahUKEwj-vseQ66yPAxXMrpUCHVm8O6cQ2ZgBCB4
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=ml&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCB4
         - link "ਪੰਜਾਬੀ" [ref=e77] [cursor=pointer]:
-          - /url: https://www.google.com/setprefs?sig=0_b9eilbumk_IcgXp296BVYnUaNeY%3D&hl=pa&source=homepage&sa=X&ved=0ahUKEwj-vseQ66yPAxXMrpUCHVm8O6cQ2ZgBCB8
+          - /url: https://www.google.com/setprefs?sig=0__RfTa9_bJ-AF8TX70Yx3Yn83pLo%3D&hl=pa&source=homepage&sa=X&ved=0ahUKEwiH1L6g8ayPAxXer5UCHQx7LFQQ2ZgBCB8
     - contentinfo [ref=e79]:
       - generic [ref=e80]: India
       - generic [ref=e81]:
