@@ -121,7 +121,9 @@ jobs:
           commit_id=$(jq -r '.commit_id // "N/A"' client_payload.json)
           repository=$(jq -r '.repository // "N/A"' client_payload.json)
           ref=$(jq -r '.ref // "N/A"' client_payload.json)
-          artifact_url="${{ steps.upload-report.outputs.artifact-url }}"
+          
+          # Generate the artifact download URL
+          artifact_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.upload-report.outputs.artifact-id }}"
 
           cat > email_body.html << EOF
           <html>
@@ -204,20 +206,30 @@ jobs:
                 </tr>
               </table>
 
-              <p style="margin-top:20px;">
-                🔗 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 
-                      style="color:#2E86C1; text-decoration:none;">
-                  View detailed test logs
-                </a>
-              </p>
+              <h3 style="margin-top:20px;">📊 Links & Reports</h3>
+              <div style="margin-top:15px;">
+                <p style="margin-bottom:10px;">
+                  🔗 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 
+                        style="color:#2E86C1; text-decoration:none; font-weight:bold;">
+                    View Workflow Logs
+                  </a>
+                </p>
+                
+                <p style="margin-bottom:10px;">
+                  📄 <a href="$artifact_url"
+                        style="color:#2E86C1; text-decoration:none; font-weight:bold;">
+                    Download Playwright Report (Artifact ID: ${{ steps.upload-report.outputs.artifact-id }})
+                  </a>
+                </p>
+              </div>
 
-              <p style="margin-top:15px;">
-                📥 <a href="$artifact_url"
-                      style="display:inline-block; padding:10px 20px; background:#2E86C1; color:#fff; 
-                             text-decoration:none; border-radius:25px; font-weight:bold;">
-                  ⬇ Download Playwright Report (Artifact)
+              <div style="text-align:center; margin-top:25px;">
+                <a href="$artifact_url"
+                   style="display:inline-block; padding:12px 25px; background:#2E86C1; color:#fff; 
+                          text-decoration:none; border-radius:25px; font-weight:bold; font-size:14px;">
+                  📥 Download Full Test Report
                 </a>
-              </p>
+              </div>
 
               <hr style="margin-top:30px; border:none; border-top:1px solid #ddd;" />
               <p style="font-size:12px; color:#999;">This is an automated email from GitHub Actions - Playwright CI.</p>
