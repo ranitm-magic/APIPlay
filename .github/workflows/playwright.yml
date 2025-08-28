@@ -89,6 +89,7 @@ jobs:
           fi
 
       - name: Upload Playwright Report
+        id: upload-report
         uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -113,7 +114,6 @@ jobs:
         if: always()
         id: generate-email
         run: |
-          # Save repository_dispatch payload safely
           echo '${{ toJSON(github.event.client_payload) }}' > client_payload.json
           
           sha=$(jq -r '.sha // "N/A"' client_payload.json)
@@ -121,8 +121,7 @@ jobs:
           commit_id=$(jq -r '.commit_id // "N/A"' client_payload.json)
           repository=$(jq -r '.repository // "N/A"' client_payload.json)
           ref=$(jq -r '.ref // "N/A"' client_payload.json)
-
-          artifact_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts"
+          artifact_url="${{ steps.upload-report.outputs.artifact-url }}"
 
           cat > email_body.html << EOF
           <html>
@@ -208,7 +207,7 @@ jobs:
               <p style="margin-top:20px;">
                 🔗 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 
                       style="color:#2E86C1; text-decoration:none;">
-                  View detailed test report
+                  View detailed test logs
                 </a>
               </p>
 
