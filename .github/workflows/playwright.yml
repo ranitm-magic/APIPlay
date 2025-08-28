@@ -122,6 +122,8 @@ jobs:
           repository=$(jq -r '.repository // "N/A"' client_payload.json)
           ref=$(jq -r '.ref // "N/A"' client_payload.json)
 
+          artifact_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts"
+
           cat > email_body.html << EOF
           <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -207,6 +209,14 @@ jobs:
                 🔗 <a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" 
                       style="color:#2E86C1; text-decoration:none;">
                   View detailed test report
+                </a>
+              </p>
+
+              <p style="margin-top:15px;">
+                📥 <a href="$artifact_url"
+                      style="display:inline-block; padding:10px 20px; background:#2E86C1; color:#fff; 
+                             text-decoration:none; border-radius:25px; font-weight:bold;">
+                  ⬇ Download Playwright Report (Artifact)
                 </a>
               </p>
 
