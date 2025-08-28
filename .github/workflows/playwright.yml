@@ -264,6 +264,14 @@ jobs:
           # Set the maximum number of runs to keep
           MAX_RUNS=30
           
+          # Check if we have a personal access token for cleanup
+          if [ -z "${{ secrets.CLEANUP_TOKEN }}" ]; then
+            echo "⚠️  CLEANUP_TOKEN secret not found. Skipping workflow cleanup."
+            echo "ℹ️  To enable automatic cleanup, create a GitHub Personal Access Token with 'actions:write' permission"
+            echo "ℹ️  and add it as a repository secret named 'CLEANUP_TOKEN'"
+            exit 0
+          fi
+          
           # Get workflow runs for this workflow (sorted by created date, newest first)
           WORKFLOW_ID=$(gh api repos/${{ github.repository }}/actions/workflows \
             --jq '.workflows[] | select(.name == "Playwright Tests") | .id')
@@ -290,7 +298,7 @@ jobs:
               RUN_ID=${RUNS_ARRAY[$i]}
               echo "Deleting workflow run: $RUN_ID"
               
-              # Delete the workflow run
+              # Delete the workflow run using the cleanup token
               gh api repos/${{ github.repository }}/actions/runs/$RUN_ID \
                 -X DELETE || echo "Failed to delete run $RUN_ID (might already be deleted or in progress)"
               
@@ -303,4 +311,4 @@ jobs:
             echo "✅ No cleanup needed. Current runs ($TOTAL_RUNS) are within limit ($MAX_RUNS)."
           fi
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.CLEANUP_TOKEN || github.token }}
