@@ -14,8 +14,12 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch'
+
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: master
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -128,7 +132,7 @@ jobs:
           cat > email_body.html << EOF
           <html>
             <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-              <h2 style="color:#2E86C1;">🎭 Playwright Test Results</h2>
+              <h2 style="color:#2E86C1;font-size : 30px">🎭 Playwright Test Results</h2>
               <p><strong>Status:</strong> 
                 <span style="color:${{ steps.status-color.outputs.status_color }};">
                   ${{ steps.status-color.outputs.status_text }}
@@ -156,7 +160,7 @@ jobs:
               <h3 style="margin-top:20px;">📌 Metadata</h3>
               <table border="1" cellspacing="0" cellpadding="8" style="border-collapse: collapse; width: 100%; max-width: 600px;">
                 <tr>
-                  <td><strong>Repository</strong></td>
+                  <td><strong>Playwright Test Repository</strong></td>
                   <td>${{ github.repository }}</td>
                 </tr>
                 <tr>
@@ -174,10 +178,6 @@ jobs:
                 <tr>
                   <td><strong>Author</strong></td>
                   <td>$commit_author</td>
-                </tr>
-                <tr>
-                  <td><strong>Commit ID</strong></td>
-                  <td><code>$commit_id</code></td>
                 </tr>
                 <tr>
                   <td><strong>Web App Repository</strong></td>
@@ -223,16 +223,7 @@ jobs:
                 </p>
               </div>
 
-              <div style="text-align:center; margin-top:25px;">
-                <a href="$artifact_url"
-                   style="display:inline-block; padding:12px 25px; background:#2E86C1; color:#fff; 
-                          text-decoration:none; border-radius:25px; font-weight:bold; font-size:14px;">
-                  📥 Download Full Test Report
-                </a>
-              </div>
-
-              <hr style="margin-top:30px; border:none; border-top:1px solid #ddd;" />
-              <p style="font-size:12px; color:#999;">This is an automated email from GitHub Actions - Playwright CI.</p>
+           
             </body>
           </html>
           EOF
