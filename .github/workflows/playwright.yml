@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: master
+          ref: ${{ github.event.client_payload.ref }}
       
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -124,7 +124,7 @@ jobs:
           commit_author=$(jq -r '.commit_author // "N/A"' client_payload.json)
           commit_id=$(jq -r '.commit_id // "N/A"' client_payload.json)
           repository=$(jq -r '.repository // "N/A"' client_payload.json)
-          ref=$(jq -r '.ref // "N/A"' client_payload.json)
+          source_ref=$(jq -r '.source_ref // "N/A"' client_payload.json)
           
           # Generate the artifact download URL
           artifact_url="https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/${{ steps.upload-report.outputs.artifact-id }}"
@@ -185,7 +185,7 @@ jobs:
                 </tr>
                 <tr>
                   <td><strong>Branch</strong></td>
-                  <td>$ref</td>
+                  <td>$source_ref</td>
                 </tr>
           EOF
           fi
